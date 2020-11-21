@@ -1,0 +1,6 @@
+/.idea/
+/.terraform/
+/terraform/.terraform/plugins/darwin_amd64/
+/terraform/terraform.tfstate
+/terraform/terraform.tfstate.backup
+/lambda.py.zip

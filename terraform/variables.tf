@@ -3,7 +3,7 @@ variable "function_name" {
 }
 
 variable "handler" {
-  default = "lambda.handler"
+  default = "lambda.lambda_handler"
 }
 
 variable "runtime" {

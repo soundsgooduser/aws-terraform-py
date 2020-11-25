@@ -4,3 +4,4 @@
 /terraform/terraform.tfstate
 /terraform/terraform.tfstate.backup
 /lambda.py.zip
+/terraform.tfstate

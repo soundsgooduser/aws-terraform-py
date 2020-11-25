@@ -5,4 +5,15 @@ resource "aws_lambda_function" "lambda_function" {
   filename = "../lambda.py.zip"
   function_name = "${var.function_name}"
   source_code_hash = filebase64sha256("../lambda.py.zip")
+
+  environment {
+    variables = {
+      BUCKET_NAME = "all-transactions"
+      HISTORICAL_RECOVERY_PATH = "historical-recovery-path"
+      PREFIXES = "us-east1/company/demo1,us-east1/company/demo2"
+      SUFFIXES = ".json"
+      LAST_MODIFIED_START = "11/01/2020 00:00:00-0000"
+      LAST_MODIFIED_END = "11/30/2020 00:00:00-0000"
+    }
+  }
 }

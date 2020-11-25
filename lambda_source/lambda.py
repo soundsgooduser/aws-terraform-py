@@ -8,6 +8,7 @@ import argparse
 
 from botocore.exceptions import ClientError
 from collections import namedtuple
+from datetime import datetime
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -60,11 +61,11 @@ def get_s3_objects(bucket, prefixes=None, suffixes=None, last_modified_min=None,
     if not prefixes:
         prefixes = ('',)
     else:
-        prefixes = tuple(set(prefixes))
+        prefixes = tuple(set(prefixes.split(",")))
     if not suffixes:
         suffixes = ('',)
     else:
-        suffixes = tuple(set(suffixes))
+        suffixes = tuple(set(suffixes.split(",")))
 
     s3 = boto3.client('s3')
     kwargs = {'Bucket': bucket}
@@ -76,6 +77,7 @@ def get_s3_objects(bucket, prefixes=None, suffixes=None, last_modified_min=None,
             # 'Contents' contains information about the listed objects.
             resp = s3.list_objects_v2(**kwargs)
             for content in resp.get('Contents', []):
+                logger.info('Processing content {}'.format(content))
                 last_modified_date = content['LastModified']
                 if (
                         content['Key'].endswith(suffixes) and
@@ -124,23 +126,41 @@ def is_not_processed(bucket_name, content):
     #get md5
     data_response = s3.get_object(Bucket=bucket_name, Key=file_key)
     json_data_response = data_response['Body'].read().decode('utf-8')
+    logger.info('Got from S3 json_data_response {}'.format(json_data_response))
     id = hashlib.md5(json_data_response.encode('utf-8')).hexdigest()
+    processed_key = file_key.replace('json', id + 'processed.success')
+    logger.info('Created processed_key id {}'.format(processed_key))
     try:
         #check if success file exists
-        s3.get_object(Bucket=bucket_name, Key=file_key.replace('json', id + 'processed.success'))
+        s3.get_object(Bucket=bucket_name, Key=processed_key)
         #exists, file processed
         return False
     except ClientError:
+        logger.info('processed_key id does not exist'.format(processed_key))
         #does not exist, file not processed
         return True
 
-def lambda_handler(event, context):
-    bucket_name = os.environ["BUCKET_NAME"]
-    prefixes = os.environ["PREFIXES"]
-    suffixes = os.environ["SUFFIXES"]
-    last_modified_start = os.environ["START_DATE-TIME"]
-    last_modified_end = os.environ["END_DATE_TIME"]
-    rec_path = os.environ["REC_PATH"]
+def handler(event, context):
+    logger.info("my lambda started")
+
+    # if (bool(0==0)):
+    #     file_key = "test1/transactions/transaction2.json"
+    #     bucket_name = "all-transactions"
+    #     data_response = s3.get_object(Bucket=bucket_name, Key=file_key)
+    #     json_data_response = data_response['Body'].read().decode('utf-8')
+    #     id = hashlib.md5(json_data_response.encode('utf-8')).hexdigest()
+    #     processed_key = file_key.replace('json', id + 'processed.success')
+    #     s3.put_object(Bucket=bucket_name, Key=processed_key)
+
+
+    bucket_name = "all-transactions" #os.environ["BUCKET_NAME"]
+    prefixes = "test1,test2" #os.environ["PREFIXES"]
+    suffixes = ".json,.json" #os.environ["SUFFIXES"]
+    modified_start = "11/01/2020 00:00:00-0000" #os.environ["START_DATE-TIME"]
+    modified_end = "11/30/2020 00:00:00-0000" #os.environ["END_DATE_TIME"]
+    rec_path = "rec_path" #os.environ["REC_PATH"]
+    last_modified_start = datetime.strptime(modified_start, '%m/%d/%Y %H:%M:%S%z')
+    last_modified_end = datetime.strptime(modified_end, '%m/%d/%Y %H:%M:%S%z')
 
     keys = get_s3_keys(bucket_name, prefixes, suffixes, last_modified_start, last_modified_end)
     for response_file_key in keys:
@@ -149,7 +169,7 @@ def lambda_handler(event, context):
         file_name = response_file_key.rsplit('/', 1)[-1].replace('.json','')
         #DocV
         #file_name = response_file_key.rsplit('/', 1)[-2] #transactionID
-        logger.info('Generate recovery file {} in {}'.format(rec_path + file_name + '.txt', bucket_name))
-        s3.put_object(Body=response_file_key.encode(), Bucket=bucket_name, Key=rec_path + file_name + '.txt')
+        logger.info('Generate recovery file {} in {}'.format(rec_path + '/' + file_name + '.txt', bucket_name))
+        s3.put_object(Body=response_file_key.encode(), Bucket=bucket_name, Key=rec_path + '/' + file_name + '.txt')
         #call processing lambda here
     return

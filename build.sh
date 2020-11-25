@@ -1,1 +1,2 @@
-zip lambda.py.zip lambda.py
+cd lambda_source
+zip -r ../lambda.py.zip *

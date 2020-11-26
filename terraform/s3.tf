@@ -17,6 +17,48 @@ resource "aws_s3_bucket_object" "object_transaction2" {
   force_destroy = true
 }
 
+resource "aws_s3_bucket_object" "object_transaction11" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "us-east1/company/demo1/11112/2/response/device/2/Response.json"
+  source = "../files/transaction1.json"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_object" "object_transaction22" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "us-east1/company/demo1/11112/3/response/device/3/Response.json"
+  source = "../files/transaction2.json"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_object" "object_transaction2222" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "us-east1/company/demo1/11112/44/response/device/44/Response.json"
+  source = "../files/transaction2.json"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_object" "object_transaction2223" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "us-east1/company/demo1/11112/45/response/device/45/Response.json"
+  source = "../files/transaction2.json"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_object" "object_transaction2224" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "us-east1/company/demo1/11112/46/response/device/46/Response.json"
+  source = "../files/transaction2.json"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_object" "object_transaction2225" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "us-east1/company/demo1/11112/47/response/device/47/Response.json"
+  source = "../files/transaction2.json"
+  force_destroy = true
+}
+
 resource "aws_s3_bucket_object" "object_transaction3" {
   bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
   key = "us-east1/company/demo2/2222/666ef123/response/device/777d588/Response.json"

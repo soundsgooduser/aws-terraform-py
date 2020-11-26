@@ -25,30 +25,7 @@ last_modified_rules = {
     lambda min_date, date, max_date: True,
 }
 
-def get_s3_objects_copy(bucket, prefix, suffixes, process_after_key_name, process_max_keys_per_lambda, last_modified_start_datetime, last_modified_end_datetime):
-  # Use the last_modified_rules dict to lookup which conditional logic to apply
-  # based on which arguments were supplied
-  last_modified_rule = last_modified_rules[bool(last_modified_start_datetime), bool(last_modified_end_datetime)]
-
-  kwargs = {'Bucket': bucket}
-  kwargs['Prefix'] = prefix
-  kwargs['MaxKeys'] = process_max_keys_per_lambda
-  if process_after_key_name:
-    kwargs['StartAfter'] = process_after_key_name
-
-  logger.info("Start to process prefix {} in bucket {} after key name {}".format(prefix, bucket, process_after_key_name))
-  resp = s3.list_objects_v2(**kwargs)
-  for content in resp.get('Contents', []):
-    file_key = content['Key']
-    last_modified_datetime = content['LastModified']
-    logger.info("Start to process file_key {} with last_modified_datetime {}".format(file_key, last_modified_datetime))
-    if (file_key.endswith(suffixes) and
-        last_modified_rule(last_modified_start_datetime, last_modified_datetime, last_modified_end_datetime) and
-        key_is_not_processed(bucket, file_key)
-    ):
-      yield file_key
-
-def get_s3_objects(bucket, prefix, suffixes, process_after_key_name, default_process_max_keys_per_lambda,
+def get_s3_keys(bucket, prefix, suffixes, process_after_key_name, default_process_max_keys_per_lambda,
                    process_max_keys_per_lambda, last_modified_start_datetime, last_modified_end_datetime):
   # Use the last_modified_rules dict to lookup which conditional logic to apply
   # based on which arguments were supplied
@@ -58,56 +35,60 @@ def get_s3_objects(bucket, prefix, suffixes, process_after_key_name, default_pro
   kwargs['Prefix'] = prefix
   if process_after_key_name:
     kwargs['StartAfter'] = process_after_key_name
-
-  logger.info("Start to process prefix {} in bucket {} after key name {}".format(prefix, bucket, process_after_key_name))
+    logger.info("Start to process prefix {} in bucket {} after key name {}".format(prefix, bucket, process_after_key_name))
+  else:
+    logger.info("Start to process prefix {} in bucket {} from first key".format(prefix, bucket))
 
   count_iteration = calculate_count_iteration(default_process_max_keys_per_lambda, process_max_keys_per_lambda)
   logger.info("Calculated count iterations {}".format(count_iteration))
 
+  last_verified_key = ""
+  not_processed_success_keys = []
   remain_process_keys = process_max_keys_per_lambda
-  for x in range(0, count_iteration):
+  for iteration in range(0, count_iteration):
+    logger.info("Started iteration {}".format(iteration + 1))
     if(process_max_keys_per_lambda > default_process_max_keys_per_lambda and remain_process_keys > default_process_max_keys_per_lambda):
       remain_process_keys = remain_process_keys - default_process_max_keys_per_lambda
       kwargs['MaxKeys'] = default_process_max_keys_per_lambda
-      logger.info("Default MaxKeys is used {}".format(default_process_max_keys_per_lambda))
     else:
       kwargs['MaxKeys'] = remain_process_keys
-      logger.info("Remain MaxKeys is used {}".format(remain_process_keys))
+
     resp = s3.list_objects_v2(**kwargs)
-    last_key = ""
+    if len(resp.get('Contents', [])) == 0:
+      logger.info("No files to process returned from S3. Break iteration.")
+      break
     for content in resp.get('Contents', []):
       file_key = content['Key']
-      last_key = file_key
+      last_verified_key = file_key
       last_modified_datetime = content['LastModified']
       if (file_key.endswith(suffixes) and
           last_modified_rule(last_modified_start_datetime, last_modified_datetime, last_modified_end_datetime) and
-          key_is_not_processed(bucket, file_key)
+          key_is_not_processed_success(bucket, file_key)
       ):
-        yield file_key
-    kwargs['StartAfter'] = last_key
+        not_processed_success_keys.append(file_key)
+    kwargs['StartAfter'] = last_verified_key
+  result = {
+    "LastVerifiedKey": last_verified_key,
+    "NotProcessedSuccessKeys": tuple(not_processed_success_keys),
+  }
+  return result
 
-def get_s3_keys(bucket, prefix, suffixes, process_after_key_name, default_process_max_keys_per_lambda,
-                process_max_keys_per_lambda, last_modified_start_datetime, last_modified_end_datetime):
-  for file_key in get_s3_objects(bucket, prefix, suffixes, process_after_key_name, default_process_max_keys_per_lambda,
-                                 process_max_keys_per_lambda, last_modified_start_datetime, last_modified_end_datetime):
-    yield file_key
-
-def key_is_not_processed(bucket, file_key):
+def key_is_not_processed_success(bucket, file_key):
   data_response = s3.get_object(Bucket=bucket, Key=file_key)
   json_data_response = data_response['Body'].read().decode('utf-8')
   id = hashlib.md5(json_data_response.encode('utf-8')).hexdigest()
-  processed_key = file_key.replace('json', id + '.ods.processed.success')
+  processed_success_key = file_key.replace('json', id + '.ods.processed.success')
   try:
     #check if success marker file exists
-    s3.get_object(Bucket=bucket, Key=processed_key)
+    s3.get_object(Bucket=bucket, Key=processed_success_key)
     #exists, file processed
-    logger.info('Processed key {} exists for file {} in bucket {} '
-                .format(processed_key, file_key, bucket))
+    logger.info('Exists processed success key {} for file {} in bucket {} '
+                .format(processed_success_key, file_key, bucket))
     return False
   except ClientError:
     #does not exist, file not processed
-    logger.info('Processed key {} does not exist for file {} in bucket {} '
-                .format(processed_key, file_key, bucket))
+    logger.info('Does not exist processed success key {} for file {} in bucket {} '
+                .format(processed_success_key, file_key, bucket))
     return True
 
 def read_and_validate_environment_vars():
@@ -164,18 +145,18 @@ def calculate_count_iteration(default_max_keys_per_lambda, process_max_keys_per_
       count_iteration = int(process_max_keys_per_lambda/default_max_keys_per_lambda) + 1
   return count_iteration
 
-def verify_next_key_exists(bucket, prefix, process_after_key_name):
+def verify_next_key_exists(bucket, prefix, last_verified_key):
+  if not last_verified_key:
+    return False
   kwargs = {'Bucket': bucket}
   kwargs['Prefix'] = prefix
   kwargs['MaxKeys'] = 1
-  kwargs['StartAfter'] = process_after_key_name
-
-  logger.info("Verify if next key exist in bucket {} and prefix {} after key name {}".format(bucket, prefix, process_after_key_name))
+  kwargs['StartAfter'] = last_verified_key
 
   resp = s3.list_objects_v2(**kwargs)
-  for content in resp.get('Contents', []):
-    return 1
-  return 0
+  if len(resp.get('Contents', [])) > 0:
+    return True
+  return False
 
 def lambda_handler(event, context):
   action_process_prefix = "process_prefix"
@@ -199,15 +180,17 @@ def lambda_handler(event, context):
     logger.info('Started to process historical data with configuration: '
                 'bucket_name {} ; historical_recovery_path {} ; '
                 'prefixes {} ; suffixes {} ; '
-                'last_modified_start_datetime {} ; last_modified_end_datetime {}'
+                'last_modified_start_datetime {} ; last_modified_end_datetime {} ; '
+                'default_process_max_keys_per_lambda {} ; process_max_keys_per_lambda {}'
                 .format(bucket, historical_recovery_path, prefixes, suffixes,
-                        last_modified_start_datetime, last_modified_end_datetime))
+                        last_modified_start_datetime, last_modified_end_datetime,
+                        default_process_max_keys_per_lambda, process_max_keys_per_lambda))
 
     for prefix in prefixes:
         payload = json.dumps({"action": action_process_prefix,
                               "metadata": {
                                 "prefix": prefix,
-                                "processAfterKeyName": ""
+                                "lastVerifiedKey": ""
                               }})
         lambda_client.invoke(
             FunctionName=context.function_name,
@@ -215,35 +198,36 @@ def lambda_handler(event, context):
             Payload=payload
         )
   elif action == action_process_prefix:
-    logger.info("Started action {}".format(action_process_prefix))
     prefix_metadata = json_object['metadata']
     prefix = prefix_metadata['prefix']
-    process_after_key_name = prefix_metadata['processAfterKeyName']
+    process_after_key_name = prefix_metadata['lastVerifiedKey']
 
-    last_processed_key = ""
     keys = get_s3_keys(bucket, prefix, suffixes, process_after_key_name, default_process_max_keys_per_lambda,
                        process_max_keys_per_lambda, last_modified_start_datetime, last_modified_end_datetime)
-    for response_file_key in keys:
+    logger.info("Started to save not processed success keys to historical recovery path")
+    for response_file_key in keys["NotProcessedSuccessKeys"]:
       file_name = response_file_key.rsplit('/', 1)[-2] #transactionID
       historical_recovery_key = historical_recovery_path + '/' + file_name + '.txt'
       logger.info('Generate historical recovery file {} in bucket {}'.format(historical_recovery_key, bucket))
       s3.put_object(Body=response_file_key.encode(), Bucket=bucket, Key=historical_recovery_key)
-      last_processed_key = response_file_key
-    logger.info('Last processed key {}'.format(last_processed_key))
-    next_key_exists = verify_next_key_exists(bucket, prefix, last_processed_key)
-    logger.info('Next key exists {}'.format(next_key_exists))
-    if next_key_exists == 1:
+
+    last_verified_key = keys["LastVerifiedKey"]
+    logger.info('Last verified key {}'.format(last_verified_key))
+    next_key_exists = verify_next_key_exists(bucket, prefix, last_verified_key)
+    msg_key_exists = "exists" if next_key_exists == True else "does not exist"
+    logger.info("Verified that next key {} after last_verified_key {}".format(msg_key_exists, last_verified_key))
+    if next_key_exists:
       payload = json.dumps({"action": action_process_prefix,
                             "metadata": {
                               "prefix": prefix,
-                              "processAfterKeyName": last_processed_key
+                              "lastVerifiedKey": last_verified_key
                           }})
       lambda_client.invoke(
           FunctionName=context.function_name,
           InvocationType='Event',
           Payload=payload
       )
-      logger.info('Asynchronous call to process next keys with payload {}'.format(payload))
+      logger.info('Asynchronous lambda call to process next keys with payload {}'.format(payload))
     else:
-      logger.info('Historical data processing finished')
+      logger.info('Data processing finished for bucket {} and prefix {}'.format(bucket, prefix))
   return

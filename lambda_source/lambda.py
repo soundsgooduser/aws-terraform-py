@@ -54,7 +54,7 @@ def get_s3_keys(bucket, prefix, suffixes, process_after_key_name, default_proces
     resp = s3.list_objects_v2(**kwargs)
     contents = resp.get('Contents', [])
     if len(contents) == 0:
-      logger.info("No files to process returned from S3. Break iteration.")
+      logger.info("No keys to process returned from S3. Break iteration.")
       break
     for content in contents:
       file_key = content['Key']
@@ -65,7 +65,7 @@ def get_s3_keys(bucket, prefix, suffixes, process_after_key_name, default_proces
           last_modified_rule(last_modified_start_datetime, last_modified_datetime, last_modified_end_datetime) and
           key_is_not_processed_success(bucket, file_key)
       ):
-        not_processed_success_keys.append(file_key)
+        not_processed_success_keys.append(content)
     kwargs['StartAfter'] = last_verified_key
   result = {
     "LastVerifiedKey": last_verified_key,
@@ -213,9 +213,12 @@ def lambda_handler(event, context):
     else:
       logger.info("Not processed success keys have not been found. Nothing to save to historical recovery path")
 
-    for response_file_key in keys["NotProcessedSuccessKeys"]:
+    for content in keys["NotProcessedSuccessKeys"]:
+      response_file_key = content["Key"]
+      last_modified_datetime = content['LastModified']
+      last_modified_date = last_modified_datetime.strftime("%m-%d-%Y")
       file_name = response_file_key.rsplit('/', 1)[-2] #transactionID
-      historical_recovery_key = historical_recovery_path + '/' + file_name + '.txt'
+      historical_recovery_key = historical_recovery_path + '/' + last_modified_date + '/' + file_name + '.txt'
       logger.info('Generate historical recovery file {} in bucket {}'.format(historical_recovery_key, bucket))
       s3.put_object(Body=response_file_key.encode(), Bucket=bucket, Key=historical_recovery_key)
 

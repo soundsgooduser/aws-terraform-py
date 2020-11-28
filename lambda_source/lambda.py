@@ -40,13 +40,11 @@ def get_s3_keys(bucket, prefix, suffixes, process_after_key_name, default_proces
     logger.info("Start to process prefix {} in bucket {} from first key".format(prefix, bucket))
 
   count_iteration = calculate_count_iteration(default_process_max_keys_per_lambda, process_max_keys_per_lambda)
-  logger.info("Calculated count iterations {}".format(count_iteration))
 
   last_verified_key = ""
   not_processed_success_keys = []
   remain_process_keys = process_max_keys_per_lambda
   for iteration in range(0, count_iteration):
-    logger.info("Started iteration {}".format(iteration + 1))
     if(process_max_keys_per_lambda > default_process_max_keys_per_lambda and remain_process_keys > default_process_max_keys_per_lambda):
       remain_process_keys = remain_process_keys - default_process_max_keys_per_lambda
       kwargs['MaxKeys'] = default_process_max_keys_per_lambda
@@ -54,11 +52,13 @@ def get_s3_keys(bucket, prefix, suffixes, process_after_key_name, default_proces
       kwargs['MaxKeys'] = remain_process_keys
 
     resp = s3.list_objects_v2(**kwargs)
-    if len(resp.get('Contents', [])) == 0:
+    contents = resp.get('Contents', [])
+    if len(contents) == 0:
       logger.info("No files to process returned from S3. Break iteration.")
       break
-    for content in resp.get('Contents', []):
+    for content in contents:
       file_key = content['Key']
+      logger.info('Verifying key {}'.format(file_key))
       last_verified_key = file_key
       last_modified_datetime = content['LastModified']
       if (file_key.endswith(suffixes) and
@@ -188,6 +188,7 @@ def lambda_handler(event, context):
 
     for prefix in prefixes:
         payload = json.dumps({"action": action_process_prefix,
+                              "lambdaAsyncNumber": 1,
                               "metadata": {
                                 "prefix": prefix,
                                 "lastVerifiedKey": ""
@@ -198,13 +199,20 @@ def lambda_handler(event, context):
             Payload=payload
         )
   elif action == action_process_prefix:
+    lambda_async_number = json_object['lambdaAsyncNumber']
     prefix_metadata = json_object['metadata']
     prefix = prefix_metadata['prefix']
     process_after_key_name = prefix_metadata['lastVerifiedKey']
 
     keys = get_s3_keys(bucket, prefix, suffixes, process_after_key_name, default_process_max_keys_per_lambda,
                        process_max_keys_per_lambda, last_modified_start_datetime, last_modified_end_datetime)
-    logger.info("Started to save not processed success keys to historical recovery path")
+
+    len_keys = len(keys["NotProcessedSuccessKeys"])
+    if len_keys > 0:
+      logger.info("Started to save not processed success keys to historical recovery path")
+    else:
+      logger.info("Not processed success keys have not been found. Nothing to save to historical recovery path")
+
     for response_file_key in keys["NotProcessedSuccessKeys"]:
       file_name = response_file_key.rsplit('/', 1)[-2] #transactionID
       historical_recovery_key = historical_recovery_path + '/' + file_name + '.txt'
@@ -212,12 +220,13 @@ def lambda_handler(event, context):
       s3.put_object(Body=response_file_key.encode(), Bucket=bucket, Key=historical_recovery_key)
 
     last_verified_key = keys["LastVerifiedKey"]
-    logger.info('Last verified key {}'.format(last_verified_key))
     next_key_exists = verify_next_key_exists(bucket, prefix, last_verified_key)
     msg_key_exists = "exists" if next_key_exists == True else "does not exist"
     logger.info("Verified that next key {} after last_verified_key {}".format(msg_key_exists, last_verified_key))
+
     if next_key_exists:
       payload = json.dumps({"action": action_process_prefix,
+                            "lambdaAsyncNumber": lambda_async_number + 1,
                             "metadata": {
                               "prefix": prefix,
                               "lastVerifiedKey": last_verified_key
@@ -227,7 +236,50 @@ def lambda_handler(event, context):
           InvocationType='Event',
           Payload=payload
       )
-      logger.info('Asynchronous lambda call to process next keys with payload {}'.format(payload))
-    else:
+
+    statsPayload = json.dumps({"bucket": bucket,
+                               "prefix": prefix,
+                               "lambdaAsyncNumber": lambda_async_number,
+                               "verifiedKeyFromName": process_after_key_name,
+                               "verifiedKeyToName": last_verified_key,
+                               "verifiedKeyFromNumber": 1 if lambda_async_number == 1 else (lambda_async_number - 1) * process_max_keys_per_lambda,
+                               "verifiedKeyToNumber": lambda_async_number * process_max_keys_per_lambda,
+                               "foundNotProcessedSuccessKeys": len(keys["NotProcessedSuccessKeys"])
+                              })
+    logger.info('Asynchronous lambda execution finished {}'.format(statsPayload))
+
+    if not next_key_exists:
       logger.info('Data processing finished for bucket {} and prefix {}'.format(bucket, prefix))
-  return
+
+
+  # cloudwatch_client = boto3.client('cloudwatch')
+  # response = cloudwatch_client.get_metric_data(
+  #     MetricDataQueries=[
+  #       {
+  #         'Id': 'myrequest',
+  #         'MetricStat': {
+  #           'Metric': {
+  #             'Namespace': 'AWS/S3',
+  #             'MetricName': 'NumberOfObjects',
+  #             'Dimensions': [
+  #               {
+  #                 'Name': 'BucketName',
+  #                 'Value': 'all-transactions'
+  #               },
+  #               {
+  #                 'Name': 'StorageType',
+  #                 'Value': 'AllStorageTypes'
+  #               },
+  #             ]
+  #           },
+  #           'Period': 86400,
+  #           'Stat': 'Sum'
+  #         }
+  #       },
+  #     ],
+  #     StartTime=datetime(2020, 11, 25),
+  #     EndTime=datetime(2020, 11, 26),
+  # )
+  # print(int(response['MetricDataResults'][0]['Values'][0]))
+
+  return "success"

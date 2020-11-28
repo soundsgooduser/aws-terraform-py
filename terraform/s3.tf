@@ -86,3 +86,38 @@ resource "aws_s3_bucket_object" "object_transaction6" {
   source = "../files/transaction6.json"
   force_destroy = true
 }
+
+resource "aws_s3_bucket_object" "object_transaction666" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "us-east1/company/demo3/33333333333333333/111ef123/response/device/222d588/Response.bla"
+  source = "../files/transaction6.json"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_object" "object_transaction66666" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "us-east1/company/demo3/44444444444444444/111ef123/response/device/222d588/Response.txt"
+  source = "../files/transaction6.json"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_object" "object_transaction666666" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "us-east1/company/demo3/55555555555555555/111ef123/response/device/222d588/some-file.txt"
+  source = "../files/transaction6.json"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_object" "object_transaction66666666" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "us-east1/company/demo3/666666666666666666/111ef123/response/device/222d588/new-file.txt"
+  source = "../files/transaction6.json"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_object" "object_transaction66666666666" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "us-east1/company/demo3/777777777777777777/111ef123/response/device/222d588/new-file.csv"
+  source = "../files/transaction6.json"
+  force_destroy = true
+}

@@ -37,6 +37,7 @@ resource "aws_iam_policy" "LambdaInline" {
         "logs:CreateLogStream",
         "logs:PutLogEvents",
         "cloudwatch:PutMetricData",
+        "cloudwatch:GetMetricData",
         "dynamodb:GetItem",
         "dynamodb:Query",
         "dynamodb:Scan",

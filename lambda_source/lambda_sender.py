@@ -97,12 +97,11 @@ def lambda_handler(event, context):
         logger.info("No keys to process returned from S3.")
         break
       else:
-        verify_from_key = s3_contents[0]['Key']
         verify_to_key = s3_contents[len_s3_contents - 1]['Key']
-
-        sqs_msg_payload = json.dumps({"bucket": action_process_prefix,
+        logger.info("Iteration {} ".format(iteration))
+        sqs_msg_payload = json.dumps({"bucket": bucket,
                                       "prefix": prefix,
-                                      "verifyFromKey": verify_from_key,
+                                      "verifyFromKey": start_after_key if iteration == 0 else last_verified_key,
                                       "verifyToKey": verify_to_key
                                      }
                                     )

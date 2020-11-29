@@ -1,13 +1,13 @@
-variable "function_name" {
-  default = "minimal_lambda_function"
+variable "s3_keys_lambda_sender_name" {
+  default = "s3_keys_lambda_sender"
 }
 
 variable "s3_keys_lambda_receiver_name" {
   default = "s3_keys_lambda_receiver"
 }
 
-variable "handler" {
-  default = "lambda.lambda_handler"
+variable "lambda_sender_handler" {
+  default = "lambda_sender.lambda_handler"
 }
 
 variable "lambda_receiver_handler" {

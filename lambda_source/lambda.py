@@ -254,35 +254,4 @@ def lambda_handler(event, context):
     if not next_key_exists:
       logger.info('Data processing finished for bucket {} and prefix {}'.format(bucket, prefix))
 
-
-  # cloudwatch_client = boto3.client('cloudwatch')
-  # response = cloudwatch_client.get_metric_data(
-  #     MetricDataQueries=[
-  #       {
-  #         'Id': 'myrequest',
-  #         'MetricStat': {
-  #           'Metric': {
-  #             'Namespace': 'AWS/S3',
-  #             'MetricName': 'NumberOfObjects',
-  #             'Dimensions': [
-  #               {
-  #                 'Name': 'BucketName',
-  #                 'Value': 'all-transactions'
-  #               },
-  #               {
-  #                 'Name': 'StorageType',
-  #                 'Value': 'AllStorageTypes'
-  #               },
-  #             ]
-  #           },
-  #           'Period': 86400,
-  #           'Stat': 'Sum'
-  #         }
-  #       },
-  #     ],
-  #     StartTime=datetime(2020, 11, 25),
-  #     EndTime=datetime(2020, 11, 26),
-  # )
-  # print(int(response['MetricDataResults'][0]['Values'][0]))
-
   return "success"

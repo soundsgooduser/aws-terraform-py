@@ -121,3 +121,75 @@ resource "aws_s3_bucket_object" "object_transaction66666666666" {
   source = "../files/transaction6.json"
   force_destroy = true
 }
+
+#####
+
+resource "aws_s3_bucket_object" "object_transaction_0" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "historical-path/10-01-2020/us-east1/company/demo/0/0/response/device/1/0.txt"
+  source = "../files/0.txt"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_object" "object_transaction_1" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "historical-path/11-01-2020/us-east1/company/demo/1/1/response/device/1/1.txt"
+  source = "../files/1.txt"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_object" "object_transaction_2" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "historical-path/11-01-2020/us-east1/company/demo/2/2/response/device/2/2.txt"
+  source = "../files/2.txt"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_object" "object_transaction_3" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "historical-path/11-01-2020/us-east1/company/demo/3/3/response/device/3/3.txt"
+  source = "../files/3.txt"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_object" "object_transaction_4" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "historical-path/11-03-2020/us-east1/company/demo/4/4/response/device/4/4.txt"
+  source = "../files/4.txt"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_object" "object_transaction_5" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "historical-path/11-03-2020/us-east1/company/demo/5/5/response/device/5/5.txt"
+  source = "../files/5.txt"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_object" "object_transaction_6" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "historical-path/11-05-2020/us-east1/company/demo/6/6/response/device/6/6.txt"
+  source = "../files/6.txt"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_object" "object_transaction_7" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "historical-path/11-05-2020/us-east1/company/demo/7/7/response/device/7/7.txt"
+  source = "../files/7.txt"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_object" "object_transaction_8" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "historical-path/11-10-2020/us-east1/company/demo/8/8/response/device/8/8.txt"
+  source = "../files/8.txt"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_object" "object_transaction_9" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "historical-path/11-09-2020/us-east1/company/demo/9/9/response/device/9/9.txt"
+  source = "../files/9.txt"
+  force_destroy = true
+}

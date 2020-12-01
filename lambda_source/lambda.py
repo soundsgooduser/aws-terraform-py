@@ -45,6 +45,7 @@ def get_s3_keys(bucket, prefix, suffixes, process_after_key_name, default_proces
   last_verified_key = ""
   not_processed_success_keys = []
   remain_process_keys = process_max_keys_per_lambda
+  total_verified_keys_per_lambda = 0
   for iteration in range(0, count_iteration):
     if(process_max_keys_per_lambda > default_process_max_keys_per_lambda and remain_process_keys > default_process_max_keys_per_lambda):
       remain_process_keys = remain_process_keys - default_process_max_keys_per_lambda
@@ -58,6 +59,7 @@ def get_s3_keys(bucket, prefix, suffixes, process_after_key_name, default_proces
       logger.info("No keys to process returned from S3. Break iteration.")
       break
     for content in contents:
+      total_verified_keys_per_lambda = total_verified_keys_per_lambda + 1
       file_key = content['Key']
       logger.info('Verifying key {}'.format(file_key))
       last_verified_key = file_key
@@ -69,6 +71,7 @@ def get_s3_keys(bucket, prefix, suffixes, process_after_key_name, default_proces
         not_processed_success_keys.append(content)
     kwargs['StartAfter'] = last_verified_key
   result = {
+    "TotalVerifiedKeysPerLambda": total_verified_keys_per_lambda,
     "LastVerifiedKey": last_verified_key,
     "NotProcessedSuccessKeys": tuple(not_processed_success_keys),
   }
@@ -204,6 +207,8 @@ def lambda_handler(event, context):
         payload = json.dumps({"action": action_process_prefix,
                               "lambdaAsyncNumber": 1,
                               "totalTimeFlowExecSeconds": 0,
+                              "totalVerifiedKeysPerPrefix": 0,
+                              "totalNotProcessedSuccessKeysPerPrefix": 0,
                               "metadata": {
                                 "prefix": prefix,
                                 "lastVerifiedKey": ""
@@ -219,12 +224,14 @@ def lambda_handler(event, context):
     prefix = prefix_metadata['prefix']
     process_after_key_name = prefix_metadata['lastVerifiedKey']
     total_time_flow_execution = json_object['totalTimeFlowExecSeconds']
-    sleep_test(10)
+    total_verified_keys_per_prefix = json_object['totalVerifiedKeysPerPrefix']
+    total_not_processed_success_keys_per_prefix = json_object['totalNotProcessedSuccessKeysPerPrefix']
+    #sleep_test(10)
     keys = get_s3_keys(bucket, prefix, suffixes, process_after_key_name, default_process_max_keys_per_lambda,
                        process_max_keys_per_lambda, last_modified_start_datetime, last_modified_end_datetime)
 
-    len_keys = len(keys["NotProcessedSuccessKeys"])
-    if len_keys > 0:
+    len_not_processed_keys = len(keys["NotProcessedSuccessKeys"])
+    if len_not_processed_keys > 0:
       logger.info("Started to save not processed success keys to historical recovery path")
     else:
       logger.info("Not processed success keys have not been found. Nothing to save to historical recovery path")
@@ -238,6 +245,7 @@ def lambda_handler(event, context):
       logger.info('Generate historical recovery file {} in bucket {}'.format(historical_recovery_key, bucket))
       s3.put_object(Body=response_file_key.encode(), Bucket=bucket, Key=historical_recovery_key)
 
+    total_verified_keys_per_lambda = keys["TotalVerifiedKeysPerLambda"]
     last_verified_key = keys["LastVerifiedKey"]
     next_key_exists = verify_next_key_exists(bucket, prefix, last_verified_key)
     msg_key_exists = "exists" if next_key_exists == True else "does not exist"
@@ -246,10 +254,14 @@ def lambda_handler(event, context):
     datetime_lambda_end = datetime.now()
     lambda_time_execution = int((datetime_lambda_end - datetime_lambda_start).total_seconds())
     total_time_flow_execution = total_time_flow_execution + lambda_time_execution
+    total_not_processed_success_keys_per_prefix = total_not_processed_success_keys_per_prefix + len_not_processed_keys
+    total_verified_keys_per_prefix = total_verified_keys_per_prefix + total_verified_keys_per_lambda
     if next_key_exists:
       payload = json.dumps({"action": action_process_prefix,
                             "lambdaAsyncNumber": lambda_async_number + 1,
                             "totalTimeFlowExecSeconds": total_time_flow_execution,
+                            "totalVerifiedKeysPerPrefix": total_verified_keys_per_prefix,
+                            "totalNotProcessedSuccessKeysPerPrefix": total_not_processed_success_keys_per_prefix,
                             "metadata": {
                               "prefix": prefix,
                               "lastVerifiedKey": last_verified_key
@@ -267,9 +279,10 @@ def lambda_handler(event, context):
                                "totalTimeFlowExecution": format_seconds(total_time_flow_execution),
                                "verifiedKeyFromName": process_after_key_name,
                                "verifiedKeyToName": last_verified_key,
-                               "verifiedKeyFromNumber": 1 if lambda_async_number == 1 else (lambda_async_number - 1) * process_max_keys_per_lambda,
-                               "verifiedKeyToNumber": lambda_async_number * process_max_keys_per_lambda,
-                               "foundNotProcessedSuccessKeys": len(keys["NotProcessedSuccessKeys"])
+                               "totalVerifiedKeysPerLambda": total_verified_keys_per_lambda,
+                               "foundNotProcessedSuccessKeysPerLambda": len_not_processed_keys,
+                               "totalVerifiedKeysPerPrefix": total_verified_keys_per_prefix,
+                               "foundNotProcessedSuccessKeysPerPrefix": total_not_processed_success_keys_per_prefix
                               })
     logger.info('Asynchronous lambda execution finished {}'.format(statsPayload))
 

@@ -3,6 +3,7 @@ import logging
 import boto3
 import hashlib
 import json
+import time
 
 from botocore.exceptions import ClientError
 from collections import namedtuple
@@ -145,6 +146,12 @@ def calculate_count_iteration(default_max_keys_per_lambda, process_max_keys_per_
       count_iteration = int(process_max_keys_per_lambda/default_max_keys_per_lambda) + 1
   return count_iteration
 
+def format_seconds(seconds):
+  if seconds <= 0:
+    return "00 min 00 sec"
+  else:
+    return time.strftime("%M min %S sec", time.gmtime(seconds))
+
 def verify_next_key_exists(bucket, prefix, last_verified_key):
   if not last_verified_key:
     return False
@@ -158,7 +165,14 @@ def verify_next_key_exists(bucket, prefix, last_verified_key):
     return True
   return False
 
+def sleep_test(seconds):
+  logger.info("before sleep")
+  time.sleep(seconds)
+  logger.info("after sleep")
+
 def lambda_handler(event, context):
+  datetime_lambda_start = datetime.now()
+
   action_process_prefix = "process_prefix"
   action_process_prefixes = "process_prefixes"
 
@@ -189,6 +203,7 @@ def lambda_handler(event, context):
     for prefix in prefixes:
         payload = json.dumps({"action": action_process_prefix,
                               "lambdaAsyncNumber": 1,
+                              "totalTimeFlowExecSeconds": 0,
                               "metadata": {
                                 "prefix": prefix,
                                 "lastVerifiedKey": ""
@@ -203,7 +218,8 @@ def lambda_handler(event, context):
     prefix_metadata = json_object['metadata']
     prefix = prefix_metadata['prefix']
     process_after_key_name = prefix_metadata['lastVerifiedKey']
-
+    total_time_flow_execution = json_object['totalTimeFlowExecSeconds']
+    sleep_test(10)
     keys = get_s3_keys(bucket, prefix, suffixes, process_after_key_name, default_process_max_keys_per_lambda,
                        process_max_keys_per_lambda, last_modified_start_datetime, last_modified_end_datetime)
 
@@ -227,9 +243,13 @@ def lambda_handler(event, context):
     msg_key_exists = "exists" if next_key_exists == True else "does not exist"
     logger.info("Verified that next key {} after last_verified_key {}".format(msg_key_exists, last_verified_key))
 
+    datetime_lambda_end = datetime.now()
+    lambda_time_execution = int((datetime_lambda_end - datetime_lambda_start).total_seconds())
+    total_time_flow_execution = total_time_flow_execution + lambda_time_execution
     if next_key_exists:
       payload = json.dumps({"action": action_process_prefix,
                             "lambdaAsyncNumber": lambda_async_number + 1,
+                            "totalTimeFlowExecSeconds": total_time_flow_execution,
                             "metadata": {
                               "prefix": prefix,
                               "lastVerifiedKey": last_verified_key
@@ -243,6 +263,8 @@ def lambda_handler(event, context):
     statsPayload = json.dumps({"bucket": bucket,
                                "prefix": prefix,
                                "lambdaAsyncNumber": lambda_async_number,
+                               "timeLambdaExecution": format_seconds(lambda_time_execution),
+                               "totalTimeFlowExecution": format_seconds(total_time_flow_execution),
                                "verifiedKeyFromName": process_after_key_name,
                                "verifiedKeyToName": last_verified_key,
                                "verifiedKeyFromNumber": 1 if lambda_async_number == 1 else (lambda_async_number - 1) * process_max_keys_per_lambda,

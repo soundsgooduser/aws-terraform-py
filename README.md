@@ -30,3 +30,21 @@ start date < end date    run assync (lvk) not changing date
 
 contents 1000
 start date == end date   run assync (lvk) not changing date
+
+
+
+============
+
+timeLambdaExecution
+totalTimeFlowExecution
+
+totalVerifiedKeysPerLambda
+totalVerifiedKeysPerFlow
+totalFoundNotProcessedSuccessKeysPerLambda
+totalFoundNotProcessedSuccessKeysPerFlow
+
+timeS3ListingPerLambda{
+	"1 listing call": ""
+	"2 listing call": ""
+}
+totalTimeS3ListingPerLambda

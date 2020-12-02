@@ -48,6 +48,7 @@ def get_s3_keys(bucket, prefix, suffixes, process_after_key_name, default_proces
   total_time_exec_list_objects_v2 = 0
   remain_process_keys = process_max_keys_per_lambda
   total_verified_keys_per_lambda = 0
+  total_time_verify_all_keys = 0
   for iteration in range(0, count_iteration):
     if(process_max_keys_per_lambda > default_process_max_keys_per_lambda and remain_process_keys > default_process_max_keys_per_lambda):
       remain_process_keys = remain_process_keys - default_process_max_keys_per_lambda
@@ -61,6 +62,7 @@ def get_s3_keys(bucket, prefix, suffixes, process_after_key_name, default_proces
     datetime_list_objects_end = datetime.now()
     datetime_list_objects_time_execution = int((datetime_list_objects_end - datetime_list_objects_start).total_seconds())
     total_time_exec_list_objects_v2 = total_time_exec_list_objects_v2 + datetime_list_objects_time_execution
+
     contents = resp.get('Contents', [])
     len_contents = len(contents)
     time_exec_list_objects_v2.append("{} call returned {} keys for {}"
@@ -68,7 +70,9 @@ def get_s3_keys(bucket, prefix, suffixes, process_after_key_name, default_proces
     if len_contents == 0:
       logger.info("No keys to process returned from S3. Break iteration.")
       break
+    datetime_verify_list_keys_start = datetime.now()
     for content in contents:
+      sleep_test(1)
       total_verified_keys_per_lambda = total_verified_keys_per_lambda + 1
       file_key = content['Key']
       logger.info('Verifying key {}'.format(file_key))
@@ -80,12 +84,16 @@ def get_s3_keys(bucket, prefix, suffixes, process_after_key_name, default_proces
       ):
         not_processed_success_keys.append(content)
     kwargs['StartAfter'] = last_verified_key
+    datetime_verify_list_keys_end = datetime.now()
+    datetime_verify_list_keys_time_exec = int((datetime_verify_list_keys_end - datetime_verify_list_keys_start).total_seconds())
+    total_time_verify_all_keys = total_time_verify_all_keys + datetime_verify_list_keys_time_exec
   result = {
     "TotalVerifiedKeysPerLambda": total_verified_keys_per_lambda,
     "LastVerifiedKey": last_verified_key,
     "NotProcessedSuccessKeys": tuple(not_processed_success_keys),
     "TotalTimeExecListObjectsV2": format_seconds(total_time_exec_list_objects_v2),
-    "TimeExecListObjectsV2PerCall": tuple(time_exec_list_objects_v2)
+    "TimeExecListObjectsV2PerCall": tuple(time_exec_list_objects_v2),
+    "TotalTimeVerifyAllKeysPerLambda": format_seconds(total_time_verify_all_keys)
   }
   return result
 
@@ -120,12 +128,12 @@ def read_and_validate_environment_vars():
   suffixes = os.environ["SUFFIXES"]
   if not suffixes:
     raise Exception("suffixes are not defined")
-  process_max_keys_per_lambda = os.environ["PROCESS_MAX_KEYS_PER_LAMBDA"]
-  if not process_max_keys_per_lambda:
-    raise Exception("process_max_keys_per_lambda is not defined")
-  default_process_max_keys_per_lambda = os.environ["DEFAULT_PROCESS_MAX_KEYS_PER_LAMBDA"]
-  if not default_process_max_keys_per_lambda:
-    raise Exception("default_process_max_keys_per_lambda is not defined")
+  s3_keys_process_max_per_lambda = os.environ["S3_KEYS_PROCESS_MAX_PER_LAMBDA"]
+  if not s3_keys_process_max_per_lambda:
+    raise Exception("s3_keys_process_max_per_lambda is not defined")
+  s3_keys_listing_limit_per_call = os.environ["S3_KEYS_LISTING_LIMIT_PER_CALL"]
+  if not s3_keys_listing_limit_per_call:
+    raise Exception("s3_keys_listing_limit_per_call is not defined")
 
   last_modified_start = os.environ["LAST_MODIFIED_START"]
   if not last_modified_start:
@@ -147,18 +155,18 @@ def read_and_validate_environment_vars():
     "suffixes": tuple(set(suffixes.split(","))),
     "last_modified_start_datetime": last_modified_start_datetime,
     "last_modified_end_datetime": last_modified_end_datetime,
-    "default_process_max_keys_per_lambda": int(default_process_max_keys_per_lambda),
-    "process_max_keys_per_lambda": int(process_max_keys_per_lambda)
+    "s3_keys_listing_limit_per_call": int(s3_keys_listing_limit_per_call),
+    "s3_keys_process_max_per_lambda": int(s3_keys_process_max_per_lambda)
   }
   return environment_vars
 
-def calculate_count_iteration(default_max_keys_per_lambda, process_max_keys_per_lambda):
+def calculate_count_iteration(default_max_keys_per_lambda, s3_keys_process_max_per_lambda):
   count_iteration = 1
-  if process_max_keys_per_lambda > default_max_keys_per_lambda:
-    if process_max_keys_per_lambda % default_max_keys_per_lambda == 0:
-      count_iteration = int(process_max_keys_per_lambda/default_max_keys_per_lambda)
+  if s3_keys_process_max_per_lambda > default_max_keys_per_lambda:
+    if s3_keys_process_max_per_lambda % default_max_keys_per_lambda == 0:
+      count_iteration = int(s3_keys_process_max_per_lambda/default_max_keys_per_lambda)
     else:
-      count_iteration = int(process_max_keys_per_lambda/default_max_keys_per_lambda) + 1
+      count_iteration = int(s3_keys_process_max_per_lambda/default_max_keys_per_lambda) + 1
   return count_iteration
 
 def format_seconds(seconds):
@@ -202,18 +210,18 @@ def lambda_handler(event, context):
   suffixes = environment_vars["suffixes"]
   last_modified_start_datetime = environment_vars["last_modified_start_datetime"]
   last_modified_end_datetime = environment_vars["last_modified_end_datetime"]
-  default_process_max_keys_per_lambda = environment_vars["default_process_max_keys_per_lambda"]
-  process_max_keys_per_lambda = environment_vars["process_max_keys_per_lambda"]
+  s3_keys_listing_limit_per_call = environment_vars["s3_keys_listing_limit_per_call"]
+  s3_keys_process_max_per_lambda = environment_vars["s3_keys_process_max_per_lambda"]
   action = json_object['action']
   if action == action_process_prefixes:
     logger.info('Started to process historical data with configuration: '
                 'bucket_name {} ; historical_recovery_path {} ; '
                 'prefixes {} ; suffixes {} ; '
                 'last_modified_start_datetime {} ; last_modified_end_datetime {} ; '
-                'default_process_max_keys_per_lambda {} ; process_max_keys_per_lambda {}'
+                's3_keys_listing_limit_per_call {} ; s3_keys_process_max_per_lambda {}'
                 .format(bucket, historical_recovery_path, prefixes, suffixes,
                         last_modified_start_datetime, last_modified_end_datetime,
-                        default_process_max_keys_per_lambda, process_max_keys_per_lambda))
+                        s3_keys_listing_limit_per_call, s3_keys_process_max_per_lambda))
 
     for prefix in prefixes:
         payload = json.dumps({"action": action_process_prefix,
@@ -239,8 +247,8 @@ def lambda_handler(event, context):
     total_verified_keys_per_prefix = json_object['totalVerifiedKeysPerPrefix']
     total_not_processed_success_keys_per_prefix = json_object['totalNotProcessedSuccessKeysPerPrefix']
     #sleep_test(10)
-    keys = get_s3_keys(bucket, prefix, suffixes, process_after_key_name, default_process_max_keys_per_lambda,
-                       process_max_keys_per_lambda, last_modified_start_datetime, last_modified_end_datetime)
+    keys = get_s3_keys(bucket, prefix, suffixes, process_after_key_name, s3_keys_listing_limit_per_call,
+                       s3_keys_process_max_per_lambda, last_modified_start_datetime, last_modified_end_datetime)
 
     len_not_processed_keys = len(keys["NotProcessedSuccessKeys"])
     if len_not_processed_keys > 0:
@@ -260,6 +268,7 @@ def lambda_handler(event, context):
     total_verified_keys_per_lambda = keys["TotalVerifiedKeysPerLambda"]
     total_time_exec_list_objects_v2 = keys["TotalTimeExecListObjectsV2"]
     time_exec_list_objects_v2_per_call = keys["TimeExecListObjectsV2PerCall"]
+    total_time_verify_all_keys_per_lambda = keys["TotalTimeVerifyAllKeysPerLambda"]
     last_verified_key = keys["LastVerifiedKey"]
     next_key_exists = verify_next_key_exists(bucket, prefix, last_verified_key)
     msg_key_exists = "exists" if next_key_exists == True else "does not exist"
@@ -298,7 +307,8 @@ def lambda_handler(event, context):
                                "totalVerifiedKeysPerPrefix": total_verified_keys_per_prefix,
                                "foundNotProcessedSuccessKeysPerPrefix": total_not_processed_success_keys_per_prefix,
                                "totalTimeExecListObjectsV2": total_time_exec_list_objects_v2,
-                               "timeExecListObjectsV2PerCall": time_exec_list_objects_v2_per_call
+                               "timeExecListObjectsV2PerCall": time_exec_list_objects_v2_per_call,
+                               "totalTimeVerifyAllKeysPerLambda": total_time_verify_all_keys_per_lambda
                               })
     logger.info('Asynchronous lambda execution finished {}'.format(statsPayload))
 

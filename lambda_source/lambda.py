@@ -27,7 +27,8 @@ last_modified_rules = {
 }
 
 def get_s3_keys(bucket, prefix, suffixes, process_after_key_name, default_process_max_keys_per_lambda,
-                   process_max_keys_per_lambda, last_modified_start_datetime, last_modified_end_datetime):
+                   process_max_keys_per_lambda, last_modified_start_datetime,
+                   last_modified_end_datetime, datetime_lambda_start):
   # Use the last_modified_rules dict to lookup which conditional logic to apply
   # based on which arguments were supplied
   last_modified_rule = last_modified_rules[bool(last_modified_start_datetime), bool(last_modified_end_datetime)]
@@ -49,6 +50,7 @@ def get_s3_keys(bucket, prefix, suffixes, process_after_key_name, default_proces
   remain_process_keys = process_max_keys_per_lambda
   total_verified_keys_per_lambda = 0
   total_time_verify_all_keys = 0
+  stop_processing = False
   for iteration in range(0, count_iteration):
     if(process_max_keys_per_lambda > default_process_max_keys_per_lambda and remain_process_keys > default_process_max_keys_per_lambda):
       remain_process_keys = remain_process_keys - default_process_max_keys_per_lambda
@@ -57,7 +59,7 @@ def get_s3_keys(bucket, prefix, suffixes, process_after_key_name, default_proces
       kwargs['MaxKeys'] = remain_process_keys
 
     datetime_list_objects_start = datetime.now()
-    sleep_test((iteration + 1 ) * 5)
+    #sleep_test((iteration + 1 ) * 5)
     resp = s3.list_objects_v2(**kwargs)
     datetime_list_objects_end = datetime.now()
     datetime_list_objects_time_execution = int((datetime_list_objects_end - datetime_list_objects_start).total_seconds())
@@ -72,7 +74,7 @@ def get_s3_keys(bucket, prefix, suffixes, process_after_key_name, default_proces
       break
     datetime_verify_list_keys_start = datetime.now()
     for content in contents:
-      sleep_test(1)
+      #sleep_test(1)
       total_verified_keys_per_lambda = total_verified_keys_per_lambda + 1
       file_key = content['Key']
       logger.info('Verifying key {}'.format(file_key))
@@ -83,10 +85,17 @@ def get_s3_keys(bucket, prefix, suffixes, process_after_key_name, default_proces
           key_is_not_processed_success(bucket, file_key)
       ):
         not_processed_success_keys.append(content)
+      current_datetime_lambda = datetime.now()
+      lambda_exec_seconds = int((current_datetime_lambda - datetime_lambda_start).total_seconds())
+      if(len(not_processed_success_keys) == 2000 or lambda_exec_seconds > 600):
+        stop_processing = True
+        break
     kwargs['StartAfter'] = last_verified_key
     datetime_verify_list_keys_end = datetime.now()
     datetime_verify_list_keys_time_exec = int((datetime_verify_list_keys_end - datetime_verify_list_keys_start).total_seconds())
     total_time_verify_all_keys = total_time_verify_all_keys + datetime_verify_list_keys_time_exec
+    if stop_processing:
+      break
   result = {
     "TotalVerifiedKeysPerLambda": total_verified_keys_per_lambda,
     "LastVerifiedKey": last_verified_key,
@@ -248,7 +257,8 @@ def lambda_handler(event, context):
     total_not_processed_success_keys_per_prefix = json_object['totalNotProcessedSuccessKeysPerPrefix']
     #sleep_test(10)
     keys = get_s3_keys(bucket, prefix, suffixes, process_after_key_name, s3_keys_listing_limit_per_call,
-                       s3_keys_process_max_per_lambda, last_modified_start_datetime, last_modified_end_datetime)
+                       s3_keys_process_max_per_lambda, last_modified_start_datetime,
+                       last_modified_end_datetime, datetime_lambda_start)
 
     len_not_processed_keys = len(keys["NotProcessedSuccessKeys"])
     if len_not_processed_keys > 0:

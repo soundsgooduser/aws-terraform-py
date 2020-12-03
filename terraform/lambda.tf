@@ -2,6 +2,7 @@ resource "aws_lambda_function" "lambda_function" {
   role = "${aws_iam_role.iam_lambda_role.arn}"
   handler = "${var.lambda_sender_handler}"
   runtime = "${var.runtime}"
+  timeout = 60
   filename = "../lambda.py.zip"
   function_name = "${var.s3_keys_lambda_sender_name}"
   source_code_hash = filebase64sha256("../lambda.py.zip")
@@ -10,8 +11,8 @@ resource "aws_lambda_function" "lambda_function" {
     variables = {
       BUCKET = "all-transactions"
       PREFIXES = "us-east1"
-      FETCH_MAX_S3_KEYS_PER_ONE_S3_CALL = "4"
-      MAX_S3_CALLS_PER_LAMBDA = "20"
+      FETCH_MAX_S3_KEYS_PER_S3_LISTING_CALL = "4"
+      LAMBDA_WORKING_LIMIT_SECONDS = "4"
       SQS_KEYS_QUEUE_URL = "${aws_sqs_queue.s3-keys-queue.id}"
     }
   }

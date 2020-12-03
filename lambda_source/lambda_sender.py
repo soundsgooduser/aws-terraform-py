@@ -149,17 +149,25 @@ def lambda_handler(event, context):
         logger.info("No keys to process returned from S3. Iteration {}. Lambda async number {}.".format(iteration, lambda_async_number))
         return "success"
       else:
-        verify_after_key = s3_contents[0]['Key']
+        if lambda_async_number == 1 and iteration == 1:
+          verify_after_key = ""
+        else:
+          verify_after_key = start_after_key if iteration == 1 else last_verified_key
         verify_to_key = s3_contents[len_s3_contents - 1]['Key']
         kwargs['StartAfter'] = verify_to_key
         last_verified_key = verify_to_key
 
         sqs_msg_payload = create_sqs_msg_payload(bucket, prefix, lambda_async_number, iteration, verify_after_key, verify_to_key)
         send_message_to_sqs(sqs_keys_queue_url, sqs_msg_payload)
-
+        sleep_test(5)
         total_keys_processed = total_keys_processed + len_s3_contents
       iteration = iteration + 1
     process_prefix_async_call(action_process_prefix, lambda_async_number + 1, prefix, last_verified_key,
                               datetime_lambda_start, total_time_flow_seconds, total_keys_processed, context.function_name)
 
   return "success"
+
+def sleep_test(seconds):
+  logger.info("before sleep")
+  time.sleep(seconds)
+  logger.info("after sleep")

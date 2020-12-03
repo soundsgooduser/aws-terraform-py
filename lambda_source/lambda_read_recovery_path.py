@@ -36,6 +36,17 @@ def read_and_validate_environment_vars():
   }
   return environment_vars
 
+def doAsyncLambdaCall(action, lambda_async_number, scan_date, last_verified_key, function_name):
+  payload = json.dumps({"action": action,
+                        "lambdaAsyncNumber": lambda_async_number + 1,
+                        "scan_date": scan_date,
+                        "lastVerifiedKey": last_verified_key
+                        })
+  lambda_client.invoke(
+    FunctionName=function_name,
+    InvocationType='Event',
+    Payload=payload
+  )
 def lambda_handler(event, context):
   action_start_scan = "start-scan"
   action_scan_prefix = "scan-prefix"
@@ -77,10 +88,11 @@ def lambda_handler(event, context):
   last_verified_key = ""
   for content in contents:
     key = content['Key']
-    last_verified_key = key
     data_response = s3.get_object(Bucket=bucket, Key=key)
     json_data_response = data_response['Body'].read().decode('utf-8')
-    process_file(json_data_response)
+    is_recovery_key_removed = process_file(bucket, key)
+    if is_recovery_key_removed == False:
+      last_verified_key = key
 
   current_scan_datetime = datetime.strptime(scan_date, '%m-%d-%Y')
   if ((len_contents == 0 or len_contents < max_s3_keys_per_call) and current_scan_datetime == scan_date_to):
@@ -90,18 +102,14 @@ def lambda_handler(event, context):
       next_scan_date = current_scan_datetime + timedelta(1)
       scan_date = next_scan_date.strftime('%m-%d-%Y')
       last_verified_key = ""
-    payload = json.dumps({"action": action_scan_prefix,
-                        "lambdaAsyncNumber": lambda_async_number + 1,
-                        "scan_date": scan_date,
-                        "lastVerifiedKey": last_verified_key
-                        })
-    lambda_client.invoke(
-      FunctionName=context.function_name,
-      InvocationType='Event',
-      Payload=payload
-    )
+
+    doAsyncLambdaCall(action_scan_prefix, lambda_async_number, scan_date, last_verified_key, context.function_name)
 
   return "success"
 
-def process_file(file):
-  logger.info('json_data_response {}'.format(file))
+def process_file(bucket, key):
+  if (key == "historical-path/11-01-2020/us-east1/company/demo/2/2/response/device/2/2.txt"):
+    return False
+  logger.info('json_data_response {}'.format(key))
+  s3.delete_object(Bucket=bucket, Key=key)
+  return True;

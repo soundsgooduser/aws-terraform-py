@@ -11,7 +11,7 @@ resource "aws_lambda_function" "lambda_function" {
       BUCKET = "all-transactions"
       PREFIXES = "us-east1"
       FETCH_MAX_S3_KEYS_PER_ONE_S3_CALL = "4"
-      MAX_S3_CALLS_PER_LAMBDA = "2"
+      MAX_S3_CALLS_PER_LAMBDA = "20"
       SQS_KEYS_QUEUE_URL = "${aws_sqs_queue.s3-keys-queue.id}"
     }
   }

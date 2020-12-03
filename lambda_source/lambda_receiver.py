@@ -121,6 +121,7 @@ def lambda_handler(event, context):
     body = json.loads(record["body"])
     bucket = body["bucket"]
     prefix = body["prefix"]
+    id = body["id"]
     verify_from_key = body["verifyFromKey"]
     verify_to_key = body["verifyToKey"]
 
@@ -141,3 +142,5 @@ def lambda_handler(event, context):
       historical_recovery_key = historical_recovery_path + '/' + last_modified_date + '/' + file_name + '.txt'
       logger.info('Generate historical recovery file {} in bucket {}'.format(historical_recovery_key, bucket))
       s3.put_object(Body=response_file_key.encode(), Bucket=bucket, Key=historical_recovery_key)
+
+  s3.put_object(Body=id.encode(), Bucket=bucket, Key=historical_recovery_path + "/" + id + "/" + id + ".txt")

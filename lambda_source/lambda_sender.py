@@ -94,13 +94,14 @@ def lambda_handler(event, context):
       s3_contents = s3_response.get('Contents', [])
       len_s3_contents = len(s3_contents)
       if len_s3_contents == 0:
-        logger.info("No keys to process returned from S3.")
+        logger.info("No keys to process returned from S3. Iteration {}".format(iteration))
         break
       else:
         verify_to_key = s3_contents[len_s3_contents - 1]['Key']
-        logger.info("Iteration {} ".format(iteration))
+        logger.info("Iteration {} ".format(iteration + 1))
         sqs_msg_payload = json.dumps({"bucket": bucket,
                                       "prefix": prefix,
+                                      "id": "id-{}".format(iteration + 1),
                                       "verifyFromKey": start_after_key if iteration == 0 else last_verified_key,
                                       "verifyToKey": verify_to_key
                                      }
@@ -112,7 +113,7 @@ def lambda_handler(event, context):
         response = sqs_client.send_message(QueueUrl=sqs_keys_queue_url,MessageBody=sqs_msg_payload)
         logger.info("Response from SQS {} ".format(response))
     # TODO: verify if key after last_verified_key exists
-    if last_verified_key:
-      process_prefix_async_call(action_process_prefix, lambda_async_number + 1, prefix, last_verified_key, context.function_name)
+    # if last_verified_key:
+    #   process_prefix_async_call(action_process_prefix, lambda_async_number + 1, prefix, last_verified_key, context.function_name)
 
   return "success"

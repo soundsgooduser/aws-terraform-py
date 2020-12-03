@@ -32,7 +32,8 @@ resource "aws_lambda_function" "lambda_receiver" {
       HISTORICAL_RECOVERY_PATH = "historical-recovery-path"
       SUFFIXES = ".json"
       LAST_MODIFIED_START = "11/01/2020 00:00:00-0000"
-      LAST_MODIFIED_END = "11/30/2020 00:00:00-0000"
+      LAST_MODIFIED_END = "12/30/2020 00:00:00-0000"
+      SAVE_RESULT_TO_S3 = "yes" # yes/no
     }
   }
 }

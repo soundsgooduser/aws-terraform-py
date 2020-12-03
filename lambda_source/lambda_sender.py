@@ -72,11 +72,11 @@ def send_message_to_sqs(sqs_keys_queue_url, sqs_msg_payload):
   response = sqs_client.send_message(QueueUrl=sqs_keys_queue_url, MessageBody=sqs_msg_payload)
   logger.info("Response from SQS {}".format(response))
 
-def create_sqs_msg_payload(bucket, prefix, iteration, verify_after_key, verify_to_key):
+def create_sqs_msg_payload(bucket, prefix, lambda_async_number, iteration, verify_after_key, verify_to_key):
   return json.dumps({
                      "bucket": bucket,
                      "prefix": prefix,
-                     "id": "id-{}".format(iteration),
+                     "id": "id-{}-{}".format(lambda_async_number, iteration),
                      "verifyAfterKey": verify_after_key,
                      "verifyToKey": verify_to_key
                      }
@@ -154,11 +154,11 @@ def lambda_handler(event, context):
         kwargs['StartAfter'] = verify_to_key
         last_verified_key = verify_to_key
 
-        sqs_msg_payload = create_sqs_msg_payload(bucket, prefix, iteration, verify_after_key, verify_to_key)
+        sqs_msg_payload = create_sqs_msg_payload(bucket, prefix, lambda_async_number, iteration, verify_after_key, verify_to_key)
         send_message_to_sqs(sqs_keys_queue_url, sqs_msg_payload)
 
         total_keys_processed = total_keys_processed + len_s3_contents
-
+      iteration = iteration + 1
     process_prefix_async_call(action_process_prefix, lambda_async_number + 1, prefix, last_verified_key,
                               datetime_lambda_start, total_time_flow_seconds, total_keys_processed, context.function_name)
 

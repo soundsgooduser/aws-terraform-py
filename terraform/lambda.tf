@@ -10,6 +10,7 @@ resource "aws_lambda_function" "lambda_function" {
   environment {
     variables = {
       BUCKET = "all-transactions"
+      HISTORICAL_RECOVERY_PATH_METADATA = "historical-recovery-path-metadata"
       PREFIXES = "us-east1"
       FETCH_MAX_S3_KEYS_PER_S3_LISTING_CALL = "4"
       LAMBDA_WORKING_LIMIT_SECONDS = "4"
@@ -30,6 +31,7 @@ resource "aws_lambda_function" "lambda_receiver" {
   environment {
     variables = {
       HISTORICAL_RECOVERY_PATH = "historical-recovery-path"
+      HISTORICAL_RECOVERY_PATH_METADATA = "historical-recovery-path-metadata"
       SUFFIXES = "Response.json"
       FETCH_MAX_S3_KEYS_PER_S3_LISTING_CALL = "4"
       LAST_MODIFIED_START = "11/01/2020 00:00:00-0000"

@@ -4,6 +4,7 @@ import boto3
 import json
 import time
 
+from botocore.exceptions import ClientError
 from datetime import datetime
 
 logger = logging.getLogger()
@@ -51,12 +52,15 @@ def read_and_validate_environment_vars():
   if not lambda_working_limit_seconds:
     raise Exception("lambda_working_limit_seconds is not defined")
 
+  historical_recovery_path_metadata = os.environ["HISTORICAL_RECOVERY_PATH_METADATA"]
+
   environment_vars = {
     "bucket": bucket,
     "prefixes": tuple(set(prefixes.split(","))),
     "sqs_keys_queue_url": sqs_keys_queue_url,
     "fetch_max_s3_keys_per_s3_listing_call": int(fetch_max_s3_keys_per_s3_listing_call),
-    "lambda_working_limit_seconds": int(lambda_working_limit_seconds)
+    "lambda_working_limit_seconds": int(lambda_working_limit_seconds),
+    "historical_recovery_path_metadata": historical_recovery_path_metadata
   }
   return environment_vars
 
@@ -95,6 +99,15 @@ def format_seconds(seconds):
   else:
     return time.strftime("%H hours %M min %S sec", time.gmtime(seconds))
 
+def verify_stop_flow_execution_flag(bucket, historical_recovery_path_metadata, prefix):
+  try:
+    key = historical_recovery_path_metadata + "/" + prefix + "/" + "stop.flag"
+    s3_client.get_object(Bucket=bucket, Key=key)
+    logger.info('Stop flow execution for bucket {} and prefix {}'.format(bucket, prefix))
+    return True
+  except ClientError:
+    return False
+
 def lambda_handler(event, context):
   datetime_lambda_start = datetime.now()
 
@@ -111,6 +124,8 @@ def lambda_handler(event, context):
   fetch_max_s3_keys_per_s3_listing_call = environment_vars["fetch_max_s3_keys_per_s3_listing_call"]
   lambda_working_limit_seconds = environment_vars["lambda_working_limit_seconds"]
   sqs_keys_queue_url = environment_vars["sqs_keys_queue_url"]
+  historical_recovery_path_metadata = environment_vars["historical_recovery_path_metadata"]
+
   action = json_object['action']
 
   if action == action_process_prefixes:
@@ -128,6 +143,10 @@ def lambda_handler(event, context):
     total_keys_processed = json_object['totalKeysProcessed']
     prefix = json_object['prefix']
     start_after_key = json_object['lastVerifiedKey']
+
+    stop_flow_execution = verify_stop_flow_execution_flag(bucket, historical_recovery_path_metadata, prefix)
+    if stop_flow_execution:
+      return "success"
 
     kwargs = {'Bucket': bucket}
     kwargs['Prefix'] = prefix
@@ -159,7 +178,7 @@ def lambda_handler(event, context):
 
         sqs_msg_payload = create_sqs_msg_payload(bucket, prefix, lambda_async_number, iteration, verify_after_key, verify_to_key)
         send_message_to_sqs(sqs_keys_queue_url, sqs_msg_payload)
-        #sleep_test(5)
+        sleep_test(10)
         total_keys_processed = total_keys_processed + len_s3_contents
       iteration = iteration + 1
     process_prefix_async_call(action_process_prefix, lambda_async_number + 1, prefix, last_verified_key,

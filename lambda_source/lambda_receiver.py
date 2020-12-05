@@ -110,11 +110,11 @@ def verify_not_processed_success_s3_keys(bucket, prefix, suffixes, verify_after_
     if stop_verification:
       break
     kwargs['StartAfter'] = last_verified_key
-    result = {
-      "TotalVerifiedKeys": total_verified_keys,
-      "TotalCreatedNotProcessedKeys": total_created_not_processed_keys
-    }
-    return result
+  result = {
+    "total_verified_keys": total_verified_keys,
+    "total_created_not_processed_keys": total_created_not_processed_keys
+  }
+  return result
 
 def verify_key_processed_success_exists_in_contents(verified_key, contents):
   key_chunks = verified_key.split("/")
@@ -159,8 +159,8 @@ def create_historical_recovery_key(content, bucket, historical_recovery_path):
 
 def save_metrics_to_s3(bucket, historical_recovery_path, lambda_sender_id, result, save_result_to_s3):
   if save_result_to_s3 == "yes":
-    total_verified_keys = "--verified-keys-{}--".format(tvk) #result["total_verified_keys"]
-    total_created_not_processed_keys = "created-not-processed-keys-{}".format(3)#result["total_created_not_processed_keys"]
+    total_verified_keys = "--verified-keys-{}--".format(result["total_verified_keys"])
+    total_created_not_processed_keys = "created-not-processed-keys-{}".format(result["total_created_not_processed_keys"])
     datetime_now = datetime.now().strftime("%H:%M:%S")
     result_key = historical_recovery_path + "/" + lambda_sender_id + total_verified_keys + total_created_not_processed_keys + "--" + datetime_now + "/" + lambda_sender_id + ".txt"
     s3.put_object(Body="", Bucket=bucket, Key=result_key)
@@ -187,7 +187,7 @@ def lambda_handler(event, context):
 
     result = verify_not_processed_success_s3_keys(bucket, prefix, suffixes, verify_after_key, verify_to_key, last_modified_start_datetime,
                                                   last_modified_end_datetime, fetch_max_s3_keys_per_s3_listing_call, historical_recovery_path)
-    tvk = result["TotalVerifiedKeys"]
-    # save_metrics_to_s3(bucket, historical_recovery_path, lambda_sender_id, result, save_result_to_s3)
+
+    save_metrics_to_s3(bucket, historical_recovery_path, lambda_sender_id, result, save_result_to_s3)
 
   return "success"

@@ -33,6 +33,9 @@ def read_and_validate_environment_vars():
   if not suffixes:
     raise Exception("suffixes are not defined")
   save_result_to_s3 = os.environ["SAVE_RESULT_TO_S3"]
+  fetch_max_s3_keys_per_s3_listing_call = os.environ["FETCH_MAX_S3_KEYS_PER_S3_LISTING_CALL"]
+  if not fetch_max_s3_keys_per_s3_listing_call:
+    raise Exception("fetch_max_s3_keys_per_s3_listing_call is not defined")
   if not save_result_to_s3:
     raise Exception("save_result_to_s3 are not defined")
   last_modified_start = os.environ["LAST_MODIFIED_START"]
@@ -51,51 +54,83 @@ def read_and_validate_environment_vars():
   environment_vars = {
     "historical_recovery_path": historical_recovery_path,
     "suffixes": tuple(set(suffixes.split(","))),
+    "fetch_max_s3_keys_per_s3_listing_call": int(fetch_max_s3_keys_per_s3_listing_call),
     "last_modified_start_datetime": last_modified_start_datetime,
     "last_modified_end_datetime": last_modified_end_datetime,
     "save_result_to_s3": save_result_to_s3
   }
   return environment_vars
 
-def get_not_processed_success_s3_keys(bucket, prefix, suffixes, verify_after_key, verify_to_key,
-    last_modified_start_datetime, last_modified_end_datetime):
-  result_not_processed_success_keys = []
+def verify_not_processed_success_s3_keys(bucket, prefix, suffixes, verify_after_key, verify_to_key,
+    last_modified_start_datetime, last_modified_end_datetime, fetch_max_s3_keys_per_s3_listing_call, historical_recovery_path):
   last_modified_rule = last_modified_rules[bool(last_modified_start_datetime), bool(last_modified_end_datetime)]
   kwargs = {'Bucket': bucket}
   kwargs['Prefix'] = prefix
+  kwargs['MaxKeys'] = fetch_max_s3_keys_per_s3_listing_call
   if verify_after_key:
     kwargs['StartAfter'] = verify_after_key
   stop_verification = False
 
   logger.info('Start keys verification')
 
+  total_verified_keys = 0
+  total_created_not_processed_keys = 0
+
   while True:
     last_verified_key = ""
     resp = s3.list_objects_v2(**kwargs)
     contents = resp.get('Contents', [])
     if len(contents) == 0:
-      logger.info("Stop verification. No keys to process returned from S3.")
+      logger.info("Stop verification. No keys to process returned from S3. " +
+                  "Count verified keys {}. Count created not processed keys {}.".format(total_verified_keys, total_created_not_processed_keys))
       break
+    log_keys = []
     for content in contents:
       key = content['Key']
+      log_keys.append(key)
+    logger.info("KEYS >>>>>>>> {}".format(log_keys))
+    for content in contents:
+      key = content['Key']
+      total_verified_keys = total_verified_keys + 1
       #logger.info('Verifying key {}'.format(key))
       last_verified_key = key
       last_modified_datetime = content['LastModified']
       if (key.endswith(suffixes) and
           last_modified_rule(last_modified_start_datetime, last_modified_datetime, last_modified_end_datetime) and
-          key_is_not_processed_success(bucket, key)
+          verify_key_processed_success_exists_in_contents(key, contents) == False and
+          verify_key_processed_success_exists_in_s3(bucket, key) == False
       ):
-        result_not_processed_success_keys.append(content)
+        create_historical_recovery_key(content, bucket, historical_recovery_path)
+        total_created_not_processed_keys = total_created_not_processed_keys + 1
       if key == verify_to_key:
         stop_verification = True
-        logger.info("Stop verification. Reached last key in verification range keys.")
+        logger.info("Stop verification. Reached last key in verification range keys."
+                    "Count verified keys {}. Count created not processed keys {}.".format(total_verified_keys, total_created_not_processed_keys))
         break
     if stop_verification:
       break
     kwargs['StartAfter'] = last_verified_key
-  return result_not_processed_success_keys
+    result = {
+      "TotalVerifiedKeys": total_verified_keys,
+      "TotalCreatedNotProcessedKeys": total_created_not_processed_keys
+    }
+    return result
 
-def key_is_not_processed_success(bucket, key):
+def verify_key_processed_success_exists_in_contents(verified_key, contents):
+  key_chunks = verified_key.split("/")
+  transaction_id = "/" + key_chunks[len(key_chunks) - 2] + "."
+  logger.info("verifying transaction_id {}".format(transaction_id))
+  ods_processed_success = ".ods.processed.success"
+  for content in contents:
+     existing_key = content['Key']
+     ods_processed_success_exists = existing_key.find(ods_processed_success)
+     transaction_id_exists = existing_key.find(transaction_id)
+     if transaction_id_exists > 0 and ods_processed_success_exists > 0 :
+       logger.info("transaction_id {} processed success {}".format(transaction_id, existing_key))
+       return True
+  return False
+
+def verify_key_processed_success_exists_in_s3(bucket, key):
   data_response = s3.get_object(Bucket=bucket, Key=key)
   json_data_response = data_response['Body'].read().decode('utf-8')
   id = hashlib.md5(json_data_response.encode('utf-8')).hexdigest()
@@ -106,12 +141,29 @@ def key_is_not_processed_success(bucket, key):
     #exists, file processed
     #logger.info('Exists processed success key {} for file {} in bucket {} '
     #            .format(processed_success_key, key, bucket))
-    return False
+    return True
   except ClientError:
     #does not exist, file not processed
     logger.info('Does not exist processed success key {} for file {} in bucket {} '
                 .format(processed_success_key, key, bucket))
-    return True
+    return False
+
+def create_historical_recovery_key(content, bucket, historical_recovery_path):
+  response_file_key = content["Key"]
+  last_modified_datetime = content['LastModified']
+  last_modified_date = last_modified_datetime.strftime("%m-%d-%Y")
+  file_name = response_file_key.rsplit('/', 1)[-2] #transactionID
+  historical_recovery_key = historical_recovery_path + '/' + last_modified_date + '/' + file_name + '.txt'
+  #logger.info('Generate historical recovery file {} in bucket {}'.format(historical_recovery_key, bucket))
+  s3.put_object(Body=response_file_key.encode(), Bucket=bucket, Key=historical_recovery_key)
+
+def save_metrics_to_s3(bucket, historical_recovery_path, lambda_sender_id, result, save_result_to_s3):
+  if save_result_to_s3 == "yes":
+    total_verified_keys = "--verified-keys-{}--".format(tvk) #result["total_verified_keys"]
+    total_created_not_processed_keys = "created-not-processed-keys-{}".format(3)#result["total_created_not_processed_keys"]
+    datetime_now = datetime.now().strftime("%H:%M:%S")
+    result_key = historical_recovery_path + "/" + lambda_sender_id + total_verified_keys + total_created_not_processed_keys + "--" + datetime_now + "/" + lambda_sender_id + ".txt"
+    s3.put_object(Body="", Bucket=bucket, Key=result_key)
 
 def lambda_handler(event, context):
   json_event = json.dumps(event)
@@ -120,6 +172,7 @@ def lambda_handler(event, context):
   environment_vars = read_and_validate_environment_vars()
   historical_recovery_path = environment_vars["historical_recovery_path"]
   suffixes = environment_vars["suffixes"]
+  fetch_max_s3_keys_per_s3_listing_call = environment_vars["fetch_max_s3_keys_per_s3_listing_call"]
   last_modified_start_datetime = environment_vars["last_modified_start_datetime"]
   last_modified_end_datetime = environment_vars["last_modified_end_datetime"]
   save_result_to_s3 = environment_vars["save_result_to_s3"]
@@ -128,30 +181,13 @@ def lambda_handler(event, context):
     body = json.loads(record["body"])
     bucket = body["bucket"]
     prefix = body["prefix"]
-    id = body["id"]
+    lambda_sender_id = body["id"]
     verify_after_key = body["verifyAfterKey"]
     verify_to_key = body["verifyToKey"]
 
-    keys = get_not_processed_success_s3_keys(bucket, prefix, suffixes, verify_after_key, verify_to_key,
-                                             last_modified_start_datetime, last_modified_end_datetime)
-    if len(keys) > 0:
-      logger.info("Started to save {} not processed success keys to historical recovery path".format(len(keys)))
-    else:
-      logger.info("Not processed success keys have not been found. Nothing to save to historical recovery path")
+    result = verify_not_processed_success_s3_keys(bucket, prefix, suffixes, verify_after_key, verify_to_key, last_modified_start_datetime,
+                                                  last_modified_end_datetime, fetch_max_s3_keys_per_s3_listing_call, historical_recovery_path)
+    tvk = result["TotalVerifiedKeys"]
+    # save_metrics_to_s3(bucket, historical_recovery_path, lambda_sender_id, result, save_result_to_s3)
 
-    generated_keys = 0
-    for content in keys:
-      response_file_key = content["Key"]
-      last_modified_datetime = content['LastModified']
-      last_modified_date = last_modified_datetime.strftime("%m-%d-%Y")
-      file_name = response_file_key.rsplit('/', 1)[-2] #transactionID
-      historical_recovery_key = historical_recovery_path + '/' + last_modified_date + '/' + file_name + '.txt'
-      #logger.info('Generate historical recovery file {} in bucket {}'.format(historical_recovery_key, bucket))
-      s3.put_object(Body=response_file_key.encode(), Bucket=bucket, Key=historical_recovery_key)
-      generated_keys = generated_keys + 1
-
-    if generated_keys > 0:
-      logger.info('Created {} keys in historical recovery path'.format(generated_keys))
-
-  if save_result_to_s3 == "yes":
-    s3.put_object(Body=id.encode(), Bucket=bucket, Key=historical_recovery_path + "/" + id + "-keys-{}".format(len(keys)) + "/" + id + ".txt")
+  return "success"

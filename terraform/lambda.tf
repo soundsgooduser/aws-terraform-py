@@ -36,7 +36,7 @@ resource "aws_lambda_function" "lambda_receiver" {
       FETCH_MAX_S3_KEYS_PER_S3_LISTING_CALL = "4"
       LAST_MODIFIED_START = "11/01/2020 00:00:00-0000"
       LAST_MODIFIED_END = "12/30/2020 00:00:00-0000"
-      SAVE_RESULT_TO_S3 = "yes" # yes/no
+      SAVE_RESULT_TO_S3 = "yes" # yes/no ; if yes then HISTORICAL_RECOVERY_PATH_METADATA mandatory
     }
   }
 }

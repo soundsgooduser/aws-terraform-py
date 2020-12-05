@@ -52,13 +52,16 @@ def read_and_validate_environment_vars():
     raise ValueError("last_modified_end_datetime {} must be greater than last_modified_start_datetime {}"
                      .format(last_modified_end_datetime, last_modified_start_datetime))
 
+  historical_recovery_path_metadata = os.environ["HISTORICAL_RECOVERY_PATH_METADATA"]
+
   environment_vars = {
     "historical_recovery_path": historical_recovery_path,
     "suffixes": tuple(set(suffixes.split(","))),
     "fetch_max_s3_keys_per_s3_listing_call": int(fetch_max_s3_keys_per_s3_listing_call),
     "last_modified_start_datetime": last_modified_start_datetime,
     "last_modified_end_datetime": last_modified_end_datetime,
-    "save_result_to_s3": save_result_to_s3
+    "save_result_to_s3": save_result_to_s3,
+    "historical_recovery_path_metadata": historical_recovery_path_metadata
   }
   return environment_vars
 
@@ -154,13 +157,13 @@ def create_historical_recovery_key(content, bucket, historical_recovery_path):
   #logger.info('Generate historical recovery file {} in bucket {}'.format(historical_recovery_key, bucket))
   s3.put_object(Body=response_file_key.encode(), Bucket=bucket, Key=historical_recovery_key)
 
-def save_metrics_to_s3(bucket, historical_recovery_path, lambda_sender_id, result, save_result_to_s3, datetime_lambda_start):
-  if save_result_to_s3 == "yes":
+def save_metrics_to_s3(bucket, historical_recovery_path_metadata, lambda_sender_id, result, save_result_to_s3, datetime_lambda_start):
+  if save_result_to_s3 == "yes" and historical_recovery_path_metadata:
     total_verified_keys = "--verified-keys-{}--".format(result["total_verified_keys"])
     total_created_not_processed_keys = "created-not-processed-keys-{}".format(result["total_created_not_processed_keys"])
     datetime_finished = "--datetime-finished-{}".format(datetime.now().strftime("%H:%M:%S"))
     lambda_time_duration = "--receiver-duration-{}".format(calculate_duration_and_format(datetime_lambda_start))
-    result_key = historical_recovery_path + "/" + "receivers-results" + "/" + lambda_sender_id + total_verified_keys + \
+    result_key = historical_recovery_path_metadata + "/" + "receivers-results" + "/" + lambda_sender_id + total_verified_keys + \
                  total_created_not_processed_keys + datetime_finished + lambda_time_duration + "/" + lambda_sender_id + ".txt"
     s3.put_object(Body="", Bucket=bucket, Key=result_key)
 
@@ -190,6 +193,7 @@ def lambda_handler(event, context):
   last_modified_start_datetime = environment_vars["last_modified_start_datetime"]
   last_modified_end_datetime = environment_vars["last_modified_end_datetime"]
   save_result_to_s3 = environment_vars["save_result_to_s3"]
+  historical_recovery_path_metadata = environment_vars["historical_recovery_path_metadata"]
 
   for record in event['Records']:
     body = json.loads(record["body"])
@@ -201,6 +205,6 @@ def lambda_handler(event, context):
 
     result = verify_not_processed_success_s3_keys(bucket, prefix, suffixes, verify_after_key, verify_to_key, last_modified_start_datetime,
                                                   last_modified_end_datetime, fetch_max_s3_keys_per_s3_listing_call, historical_recovery_path)
-    save_metrics_to_s3(bucket, historical_recovery_path, lambda_sender_id, result, save_result_to_s3, datetime_lambda_start)
+    save_metrics_to_s3(bucket, historical_recovery_path_metadata, lambda_sender_id, result, save_result_to_s3, datetime_lambda_start)
 
   return "success"

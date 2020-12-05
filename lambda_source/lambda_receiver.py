@@ -99,7 +99,7 @@ def key_is_not_processed_success(bucket, key):
   data_response = s3.get_object(Bucket=bucket, Key=key)
   json_data_response = data_response['Body'].read().decode('utf-8')
   id = hashlib.md5(json_data_response.encode('utf-8')).hexdigest()
-  processed_success_key = key.replace('json', id + '.ods.processed.success')
+  processed_success_key = key.replace('/Response.json', '.' + id + '.ods.processed.success')
   try:
     #check if success marker file exists
     s3.get_object(Bucket=bucket, Key=processed_success_key)
@@ -109,8 +109,8 @@ def key_is_not_processed_success(bucket, key):
     return False
   except ClientError:
     #does not exist, file not processed
-    #logger.info('Does not exist processed success key {} for file {} in bucket {} '
-    #            .format(processed_success_key, key, bucket))
+    logger.info('Does not exist processed success key {} for file {} in bucket {} '
+                .format(processed_success_key, key, bucket))
     return True
 
 def lambda_handler(event, context):

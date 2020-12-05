@@ -162,7 +162,8 @@ def save_metrics_to_s3(bucket, historical_recovery_path, lambda_sender_id, resul
     total_verified_keys = "--verified-keys-{}--".format(result["total_verified_keys"])
     total_created_not_processed_keys = "created-not-processed-keys-{}".format(result["total_created_not_processed_keys"])
     datetime_now = datetime.now().strftime("%H:%M:%S")
-    result_key = historical_recovery_path + "/" + lambda_sender_id + total_verified_keys + total_created_not_processed_keys + "--" + datetime_now + "/" + lambda_sender_id + ".txt"
+    result_key = historical_recovery_path + "/" + "receivers-results" + lambda_sender_id + total_verified_keys + \
+                 total_created_not_processed_keys + "--" + datetime_now + "/" + lambda_sender_id + ".txt"
     s3.put_object(Body="", Bucket=bucket, Key=result_key)
 
 def lambda_handler(event, context):

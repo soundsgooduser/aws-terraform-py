@@ -16,15 +16,14 @@ resource "aws_s3_bucket_object" "object_transaction_1" {
 //  key = "us-east1/company/demo1/1111/222ef123/response/device/333d588.e39b3cf977b7b5fa90760ee2b9eb7dcc.ods.processed.success"
 //  source = "../files/processed.success"
 //  force_destroy = true
-//  count = var
 //}
 
-resource "aws_s3_bucket_object" "object_transaction_1_processed_success_timestamp" {
-  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-  key = "us-east1/company/demo1/1111/222ef123/response/device/333d588.e39b3cf977b7b5fa90760ee2b9eb7dcc.ods.processed.success.2020-01-01T00:00:00.100Z"
-  source = "../files/processed.success"
-  force_destroy = true
-}
+//resource "aws_s3_bucket_object" "object_transaction_1_processed_success_timestamp" {
+//  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+//  key = "us-east1/company/demo1/1111/222ef123/response/device/333d588.e39b3cf977b7b5fa90760ee2b9eb7dcc.ods.processed.success.2020-01-01T00:00:00.100Z"
+//  source = "../files/processed.success"
+//  force_destroy = true
+//}
 
 
 # 2
@@ -35,19 +34,19 @@ resource "aws_s3_bucket_object" "object_transaction_2" {
   force_destroy = true
 }
 
-//resource "aws_s3_bucket_object" "object_transaction_2_processed_success" {
-//  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-//  key = "us-east1/company/demo1/1111/444ef123/response/device/555d588.1f6ba0009ade5ae06bf1b823ca82f5b9.ods.processed.success"
-//  source = "../files/processed.success"
-//  force_destroy = true
-//}
-
-resource "aws_s3_bucket_object" "object_transaction_2_processed_success_timestamp" {
+resource "aws_s3_bucket_object" "object_transaction_2_processed_success" {
   bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-  key = "us-east1/company/demo1/1111/444ef123/response/device/555d588.1f6ba0009ade5ae06bf1b823ca82f5b9.ods.processed.success.2020-02-02T00:00:00.200Z"
+  key = "us-east1/company/demo1/1111/444ef123/response/device/555d588.1f6ba0009ade5ae06bf1b823ca82f5b9.ods.processed.success"
   source = "../files/processed.success"
   force_destroy = true
 }
+
+//resource "aws_s3_bucket_object" "object_transaction_2_processed_success_timestamp" {
+//  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+//  key = "us-east1/company/demo1/1111/444ef123/response/device/555d588.1f6ba0009ade5ae06bf1b823ca82f5b9.ods.processed.success.2020-02-02T00:00:00.200Z"
+//  source = "../files/processed.success"
+//  force_destroy = true
+//}
 
 
 # 3
@@ -65,12 +64,12 @@ resource "aws_s3_bucket_object" "object_transaction_11" {
 //  force_destroy = true
 //}
 
-resource "aws_s3_bucket_object" "object_transaction_11_processed_success_timestamp" {
-  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-  key = "us-east1/company/demo1/11112/2/response/device/2.e39b3cf977b7b5fa90760ee2b9eb7dcc.ods.processed.success.2020-03-03T00:00:00.300Z"
-  source = "../files/processed.success"
-  force_destroy = true
-}
+//resource "aws_s3_bucket_object" "object_transaction_11_processed_success_timestamp" {
+//  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+//  key = "us-east1/company/demo1/11112/2/response/device/2.e39b3cf977b7b5fa90760ee2b9eb7dcc.ods.processed.success.2020-03-03T00:00:00.300Z"
+//  source = "../files/processed.success"
+//  force_destroy = true
+//}
 
 
 # 4
@@ -111,12 +110,12 @@ resource "aws_s3_bucket_object" "object_transaction_2222" {
 //  force_destroy = true
 //}
 
-resource "aws_s3_bucket_object" "object_transaction_2222_processed_success_timestamp" {
-  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-  key = "us-east1/company/demo1/11112/44/response/device/44.1f6ba0009ade5ae06bf1b823ca82f5b9.ods.processed.success.2020-05-05T00:00:00.500Z"
-  source = "../files/processed.success"
-  force_destroy = true
-}
+//resource "aws_s3_bucket_object" "object_transaction_2222_processed_success_timestamp" {
+//  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+//  key = "us-east1/company/demo1/11112/44/response/device/44.1f6ba0009ade5ae06bf1b823ca82f5b9.ods.processed.success.2020-05-05T00:00:00.500Z"
+//  source = "../files/processed.success"
+//  force_destroy = true
+//}
 
 
 # 6
@@ -127,19 +126,19 @@ resource "aws_s3_bucket_object" "object_transaction_2223" {
   force_destroy = true
 }
 
-//resource "aws_s3_bucket_object" "object_transaction_2223_processed_success" {
-//  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-//  key = "us-east1/company/demo1/11112/45/response/device/45.1f6ba0009ade5ae06bf1b823ca82f5b9.ods.processed.success"
-//  source = "../files/processed.success"
-//  force_destroy = true
-//}
-
-resource "aws_s3_bucket_object" "object_transaction_2223_processed_success_timestamp" {
+resource "aws_s3_bucket_object" "object_transaction_2223_processed_success" {
   bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-  key = "us-east1/company/demo1/11112/45/response/device/45.1f6ba0009ade5ae06bf1b823ca82f5b9.ods.processed.success.2020-06-06T00:00:00.600Z"
+  key = "us-east1/company/demo1/11112/45/response/device/45.1f6ba0009ade5ae06bf1b823ca82f5b9.ods.processed.success"
   source = "../files/processed.success"
   force_destroy = true
 }
+
+//resource "aws_s3_bucket_object" "object_transaction_2223_processed_success_timestamp" {
+//  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+//  key = "us-east1/company/demo1/11112/45/response/device/45.1f6ba0009ade5ae06bf1b823ca82f5b9.ods.processed.success.2020-06-06T00:00:00.600Z"
+//  source = "../files/processed.success"
+//  force_destroy = true
+//}
 
 
 # 7
@@ -157,16 +156,16 @@ resource "aws_s3_bucket_object" "object_transaction_2224" {
 //  force_destroy = true
 //}
 
-resource "aws_s3_bucket_object" "object_transaction_2224_processed_success_timestamp" {
-  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-  key = "us-east1/company/demo1/11112/46/response/device/46.1f6ba0009ade5ae06bf1b823ca82f5b9.ods.processed.success.2020-07-07T00:00:00.700Z"
-  source = "../files/processed.success"
-  force_destroy = true
-}
+//resource "aws_s3_bucket_object" "object_transaction_2224_processed_success_timestamp" {
+//  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+//  key = "us-east1/company/demo1/11112/46/response/device/46.1f6ba0009ade5ae06bf1b823ca82f5b9.ods.processed.success.2020-07-07T00:00:00.700Z"
+//  source = "../files/processed.success"
+//  force_destroy = true
+//}
 
 
 # 8
-resource "aws_s3_bucket_object" "object_transaction" {
+resource "aws_s3_bucket_object" "object_transaction_2225" {
   bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
   key = "us-east1/company/demo1/11112/47/response/device/47/Response.json"
   source = "../files/transaction2.json"
@@ -203,12 +202,12 @@ resource "aws_s3_bucket_object" "object_transaction_3" {
 //  force_destroy = true
 //}
 
-resource "aws_s3_bucket_object" "object_transaction_3_processed_success_timestamp" {
-  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-  key = "us-east1/company/demo2/2222/666ef123/response/device/777d588.7e2a0a4740667ecf0e5b27c147f72a9b.ods.processed.success.2020-09-09T00:00:00.900Z"
-  source = "../files/processed.success"
-  force_destroy = true
-}
+//resource "aws_s3_bucket_object" "object_transaction_3_processed_success_timestamp" {
+//  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+//  key = "us-east1/company/demo2/2222/666ef123/response/device/777d588.7e2a0a4740667ecf0e5b27c147f72a9b.ods.processed.success.2020-09-09T00:00:00.900Z"
+//  source = "../files/processed.success"
+//  force_destroy = true
+//}
 
 
 # 10
@@ -219,19 +218,19 @@ resource "aws_s3_bucket_object" "object_transaction_4" {
   force_destroy = true
 }
 
-//resource "aws_s3_bucket_object" "object_transaction_4_processed_success" {
-//  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-//  key = "us-east1/company/demo2/2222/888ef123/response/device/999d588.de2731685728971b22e820d81ab41c5e.ods.processed.success"
-//  source = "../files/processed.success"
-//  force_destroy = true
-//}
-
-resource "aws_s3_bucket_object" "object_transaction_4_processed_success_timestamp" {
+resource "aws_s3_bucket_object" "object_transaction_4_processed_success" {
   bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-  key = "us-east1/company/demo2/2222/888ef123/response/device/999d588.de2731685728971b22e820d81ab41c5e.ods.processed.success.2020-10-10T00:00:00.101Z"
+  key = "us-east1/company/demo2/2222/888ef123/response/device/999d588.de2731685728971b22e820d81ab41c5e.ods.processed.success"
   source = "../files/processed.success"
   force_destroy = true
 }
+
+//resource "aws_s3_bucket_object" "object_transaction_4_processed_success_timestamp" {
+//  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+//  key = "us-east1/company/demo2/2222/888ef123/response/device/999d588.de2731685728971b22e820d81ab41c5e.ods.processed.success.2020-10-10T00:00:00.101Z"
+//  source = "../files/processed.success"
+//  force_destroy = true
+//}
 
 
 # 11
@@ -249,12 +248,12 @@ resource "aws_s3_bucket_object" "object_transaction_5" {
 //  force_destroy = true
 //}
 
-resource "aws_s3_bucket_object" "object_transaction_5_processed_success_timestamp" {
-  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-  key = "us-east1/company/demo3/3333/000ef123/response/device/111d588.33748e312ab27366e1fa7dbec035dcf1.ods.processed.success.2020-11-11T00:00:00.111Z"
-  source = "../files/processed.success"
-  force_destroy = true
-}
+//resource "aws_s3_bucket_object" "object_transaction_5_processed_success_timestamp" {
+//  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+//  key = "us-east1/company/demo3/3333/000ef123/response/device/111d588.33748e312ab27366e1fa7dbec035dcf1.ods.processed.success.2020-11-11T00:00:00.111Z"
+//  source = "../files/processed.success"
+//  force_destroy = true
+//}
 
 
 # 12

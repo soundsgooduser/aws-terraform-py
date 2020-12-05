@@ -159,7 +159,7 @@ def lambda_handler(event, context):
 
         sqs_msg_payload = create_sqs_msg_payload(bucket, prefix, lambda_async_number, iteration, verify_after_key, verify_to_key)
         send_message_to_sqs(sqs_keys_queue_url, sqs_msg_payload)
-        sleep_test(5)
+        #sleep_test(5)
         total_keys_processed = total_keys_processed + len_s3_contents
       iteration = iteration + 1
     process_prefix_async_call(action_process_prefix, lambda_async_number + 1, prefix, last_verified_key,

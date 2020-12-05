@@ -3,6 +3,7 @@ import logging
 import boto3
 import hashlib
 import json
+import time
 
 from botocore.exceptions import ClientError
 from collections import namedtuple
@@ -84,11 +85,7 @@ def verify_not_processed_success_s3_keys(bucket, prefix, suffixes, verify_after_
       logger.info("Stop verification. No keys to process returned from S3. " +
                   "Count verified keys {}. Count created not processed keys {}.".format(total_verified_keys, total_created_not_processed_keys))
       break
-    log_keys = []
-    for content in contents:
-      key = content['Key']
-      log_keys.append(key)
-    logger.info("KEYS >>>>>>>> {}".format(log_keys))
+
     for content in contents:
       key = content['Key']
       total_verified_keys = total_verified_keys + 1
@@ -119,14 +116,14 @@ def verify_not_processed_success_s3_keys(bucket, prefix, suffixes, verify_after_
 def verify_key_processed_success_exists_in_contents(verified_key, contents):
   key_chunks = verified_key.split("/")
   transaction_id = "/" + key_chunks[len(key_chunks) - 2] + "."
-  logger.info("verifying transaction_id {}".format(transaction_id))
+  #logger.info("Verifying transaction id {}".format(transaction_id))
   ods_processed_success = ".ods.processed.success"
   for content in contents:
      existing_key = content['Key']
      ods_processed_success_exists = existing_key.find(ods_processed_success)
      transaction_id_exists = existing_key.find(transaction_id)
      if transaction_id_exists > 0 and ods_processed_success_exists > 0 :
-       logger.info("transaction_id {} processed success {}".format(transaction_id, existing_key))
+       #logger.info("Verified in s3 response that transaction id {} processed success {}".format(transaction_id, existing_key))
        return True
   return False
 
@@ -144,8 +141,8 @@ def verify_key_processed_success_exists_in_s3(bucket, key):
     return True
   except ClientError:
     #does not exist, file not processed
-    logger.info('Does not exist processed success key {} for file {} in bucket {} '
-                .format(processed_success_key, key, bucket))
+    #logger.info('Does not exist processed success key {} for file {} in bucket {} '
+    #            .format(processed_success_key, key, bucket))
     return False
 
 def create_historical_recovery_key(content, bucket, historical_recovery_path):
@@ -157,16 +154,32 @@ def create_historical_recovery_key(content, bucket, historical_recovery_path):
   #logger.info('Generate historical recovery file {} in bucket {}'.format(historical_recovery_key, bucket))
   s3.put_object(Body=response_file_key.encode(), Bucket=bucket, Key=historical_recovery_key)
 
-def save_metrics_to_s3(bucket, historical_recovery_path, lambda_sender_id, result, save_result_to_s3):
+def save_metrics_to_s3(bucket, historical_recovery_path, lambda_sender_id, result, save_result_to_s3, datetime_lambda_start):
   if save_result_to_s3 == "yes":
     total_verified_keys = "--verified-keys-{}--".format(result["total_verified_keys"])
     total_created_not_processed_keys = "created-not-processed-keys-{}".format(result["total_created_not_processed_keys"])
-    datetime_now = datetime.now().strftime("%H:%M:%S")
+    datetime_finished = "--datetime-finished-{}".format(datetime.now().strftime("%H:%M:%S"))
+    lambda_time_duration = "--receiver-duration-{}".format(calculate_duration_and_format(datetime_lambda_start))
     result_key = historical_recovery_path + "/" + "receivers-results" + "/" + lambda_sender_id + total_verified_keys + \
-                 total_created_not_processed_keys + "--" + datetime_now + "/" + lambda_sender_id + ".txt"
+                 total_created_not_processed_keys + datetime_finished + lambda_time_duration + "/" + lambda_sender_id + ".txt"
     s3.put_object(Body="", Bucket=bucket, Key=result_key)
 
+def calculate_duration(datetime_start):
+  datetime_end = datetime.now()
+  return int((datetime_end - datetime_start).total_seconds())
+
+def calculate_duration_and_format(datetime_start):
+  return format_seconds(calculate_duration(datetime_start))
+
+def format_seconds(seconds):
+  if seconds <= 0:
+    return "00 hours 00 min 00 sec"
+  else:
+    return time.strftime("%H hours %M min %S sec", time.gmtime(seconds))
+
 def lambda_handler(event, context):
+  datetime_lambda_start = datetime.now()
+
   json_event = json.dumps(event)
   logger.info("Lambda received event {} ".format(json_event))
 
@@ -188,7 +201,6 @@ def lambda_handler(event, context):
 
     result = verify_not_processed_success_s3_keys(bucket, prefix, suffixes, verify_after_key, verify_to_key, last_modified_start_datetime,
                                                   last_modified_end_datetime, fetch_max_s3_keys_per_s3_listing_call, historical_recovery_path)
-
-    save_metrics_to_s3(bucket, historical_recovery_path, lambda_sender_id, result, save_result_to_s3)
+    save_metrics_to_s3(bucket, historical_recovery_path, lambda_sender_id, result, save_result_to_s3, datetime_lambda_start)
 
   return "success"

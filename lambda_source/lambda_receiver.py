@@ -153,7 +153,7 @@ def create_historical_recovery_key(content, bucket, historical_recovery_path):
   last_modified_datetime = content['LastModified']
   last_modified_date = last_modified_datetime.strftime("%m-%d-%Y")
   file_name = response_file_key.rsplit('/', 1)[-2] #transactionID
-  historical_recovery_key = historical_recovery_path + '/' + last_modified_date + '/' + file_name + '.txt'
+  historical_recovery_key = historical_recovery_path + '/' + last_modified_date + '/' + str(last_modified_datetime.hour) + "/" + file_name + '.txt'
   #logger.info('Generate historical recovery file {} in bucket {}'.format(historical_recovery_key, bucket))
   s3.put_object(Body=response_file_key.encode(), Bucket=bucket, Key=historical_recovery_key)
 

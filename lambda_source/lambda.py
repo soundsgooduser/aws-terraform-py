@@ -69,7 +69,7 @@ def verify_not_processed_success_s3_keys(bucket, prefix, suffixes, process_after
       break
     datetime_verify_list_keys_start = datetime.now()
     for content in contents:
-      #sleep_test(1)
+      #sleep_test(4)
       total_verified_keys_per_lambda = total_verified_keys_per_lambda + 1
       file_key = content['Key']
       logger.info('Verifying key {}'.format(file_key))
@@ -177,6 +177,8 @@ def read_and_validate_environment_vars():
   if not lambda_execution_limit_seconds:
     raise Exception("lambda_execution_limit_seconds is not defined")
 
+  historical_recovery_path_metadata = os.environ["HISTORICAL_RECOVERY_PATH_METADATA"]
+
   environment_vars = {
     "bucket": bucket_name,
     "historical_recovery_path": historical_recovery_path,
@@ -185,7 +187,8 @@ def read_and_validate_environment_vars():
     "last_modified_start_datetime": last_modified_start_datetime,
     "last_modified_end_datetime": last_modified_end_datetime,
     "s3_keys_listing_limit_per_call": int(s3_keys_listing_limit_per_call),
-    "lambda_execution_limit_seconds": int(lambda_execution_limit_seconds)
+    "lambda_execution_limit_seconds": int(lambda_execution_limit_seconds),
+    "historical_recovery_path_metadata": historical_recovery_path_metadata
   }
   return environment_vars
 
@@ -193,7 +196,7 @@ def format_seconds(seconds):
   if seconds <= 0:
     return "00 min 00 sec"
   else:
-    return time.strftime("%M min %S sec", time.gmtime(seconds))
+    return time.strftime("%H hours %M min %S sec", time.gmtime(seconds))
 
 def verify_next_key_exists(bucket, prefix, last_verified_key):
   if not last_verified_key:
@@ -207,6 +210,15 @@ def verify_next_key_exists(bucket, prefix, last_verified_key):
   if len(resp.get('Contents', [])) > 0:
     return True
   return False
+
+def verify_stop_flow_execution_flag(bucket, historical_recovery_path_metadata, prefix):
+  try:
+    key = historical_recovery_path_metadata + "/" + prefix + "/" + "stop.flag"
+    s3.get_object(Bucket=bucket, Key=key)
+    logger.info('Stop flow execution for bucket {} and prefix {}'.format(bucket, prefix))
+    return True
+  except ClientError:
+    return False
 
 def lambda_handler(event, context):
   datetime_lambda_start = datetime.now()
@@ -227,6 +239,7 @@ def lambda_handler(event, context):
   last_modified_end_datetime = environment_vars["last_modified_end_datetime"]
   s3_keys_listing_limit_per_call = environment_vars["s3_keys_listing_limit_per_call"]
   lambda_execution_limit_seconds = environment_vars["lambda_execution_limit_seconds"]
+  historical_recovery_path_metadata = environment_vars["historical_recovery_path_metadata"]
   action = json_object['action']
 
   if action == action_process_prefixes:
@@ -262,6 +275,11 @@ def lambda_handler(event, context):
     total_time_flow_execution = json_object['totalTimeFlowExecSeconds']
     total_verified_keys_per_prefix = json_object['totalVerifiedKeysPerPrefix']
     total_not_processed_success_keys_per_prefix = json_object['totalNotProcessedSuccessKeysPerPrefix']
+
+    stop_flow_execution = verify_stop_flow_execution_flag(bucket, historical_recovery_path_metadata, prefix)
+    if stop_flow_execution:
+      return "success"
+
     #sleep_test(10)
     result = verify_not_processed_success_s3_keys(bucket, prefix, suffixes, process_after_key_name, s3_keys_listing_limit_per_call,
                        last_modified_start_datetime, last_modified_end_datetime, datetime_lambda_start,

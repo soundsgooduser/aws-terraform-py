@@ -34,9 +34,9 @@ resource "aws_lambda_function" "lambda_read_recovery_path" {
   environment {
     variables = {
       BUCKET_NAME = "all-transactions"
-      HISTORICAL_RECOVERY_PATH = "historical-recovery-path"
-      SCAN_DATE_START = "12-06-2020"
-      SCAN_DATE_END = "12-06-2020"
+      HISTORICAL_RECOVERY_PATH = "historical-recovery-path-with-dates"
+      SCAN_DATE_START = "11-01-2020"
+      SCAN_DATE_END = "11-01-2020"
       FETCH_MAX_S3_KEYS_PER_S3_LISTING_CALL = "2"
       LAMBDA_WORKING_LIMIT_SECONDS = "60"
     }

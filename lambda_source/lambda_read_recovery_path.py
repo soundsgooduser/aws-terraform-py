@@ -46,11 +46,15 @@ def read_and_validate_environment_vars():
   }
   return environment_vars
 
-def do_async_lambda_call(action, lambda_async_number, prefix, last_verified_key, function_name):
+def do_async_lambda_call(action, lambda_async_number, prefix, last_verified_key, function_name,
+    total_time_flow_execution_seconds, total_keys_success_per_prefix, total_keys_failed_per_prefix):
   payload = json.dumps({"action": action,
                         "lambdaAsyncNumber": lambda_async_number,
                         "prefix": prefix,
-                        "lastVerifiedKey": last_verified_key
+                        "lastVerifiedKey": last_verified_key,
+                        "totalTimeFlowExecutionSeconds": total_time_flow_execution_seconds,
+                        "totalKeysSuccessPerPrefix": total_keys_success_per_prefix,
+                        "totalKeysFailedPerPrefix": total_keys_failed_per_prefix
                         })
   lambda_client.invoke(
       FunctionName=function_name,
@@ -89,6 +93,23 @@ def create_prefixes(scan_date_from, scan_date_to):
   logger.info('Created {} prefixes {}'.format(len(prefixes), prefixes))
   return tuple(prefixes)
 
+def log_metrics(bucket, prefix, lambda_async_number, lambda_time_execution, total_time_flow_execution, process_after_key_name, last_verified_key,
+    keys_processed_success_per_lambda, keys_processed_failed_per_lambda, total_keys_success_per_prefix, total_keys_failed_per_prefix):
+  metrics = json.dumps({"bucket": bucket,
+                        "prefix": prefix,
+                        "lambdaAsyncNumber": lambda_async_number,
+                        "timeLambdaExecution": format_seconds(lambda_time_execution),
+                        "totalTimeFlowExecution": format_seconds(total_time_flow_execution),
+                        "verifiedKeyFromName": process_after_key_name,
+                        "verifiedKeyToName": last_verified_key,
+                        "keysProcessedSuccessPerLambda": keys_processed_success_per_lambda,
+                        "keysProcessedFailedPerLambda": keys_processed_failed_per_lambda,
+                        "totalKeysSuccessPerPrefix": total_keys_success_per_prefix,
+                        "totalKeysFailedPerPrefix": total_keys_failed_per_prefix
+                        }
+                      )
+  logger.info('Finished recovery keys processing {}'.format(metrics))
+
 def lambda_handler(event, context):
   datetime_lambda_start = datetime.now()
 
@@ -123,11 +144,14 @@ def lambda_handler(event, context):
 
     for prefix in prefixes:
       prefix_path = historical_recovery_path + "/" + prefix
-      do_async_lambda_call(action_process_prefix, 1, prefix_path, "", context.function_name)
+      do_async_lambda_call(action_process_prefix, 1, prefix_path, "", context.function_name, 0, 0, 0)
   elif action == action_process_prefix:
     start_after = json_object["lastVerifiedKey"]
     lambda_async_number = json_object["lambdaAsyncNumber"]
     prefix = json_object["prefix"]
+    total_time_flow_execution_seconds = json_object["totalTimeFlowExecutionSeconds"]
+    total_keys_success_per_prefix = json_object["totalKeysSuccessPerPrefix"]
+    total_keys_failed_per_prefix = json_object["totalKeysFailedPerPrefix"]
 
     kwargs = {'Bucket': bucket}
     kwargs['Prefix'] = prefix
@@ -136,17 +160,24 @@ def lambda_handler(event, context):
       kwargs['StartAfter'] = start_after
     last_verified_key = ""
     stop_processing = False
+    keys_success_per_lambda = 0
+    keys_failed_per_lambda = 0
 
     while stop_processing == False:
       resp = s3.list_objects_v2(**kwargs)
       contents = resp.get('Contents', [])
       len_contents = len(contents)
-      if (len_contents == 0):
-        logger.info('Finished data processing for bucket {} ; prefix {}'.format(bucket, prefix))
+      if len_contents == 0:
+        lambda_time_duration = calculate_duration(datetime_lambda_start)
+        total_time_flow_execution_seconds = total_time_flow_execution_seconds + lambda_time_duration
+        total_keys_success_per_prefix = total_keys_success_per_prefix + keys_success_per_lambda
+        total_keys_failed_per_prefix = total_keys_failed_per_prefix + keys_failed_per_lambda
+        log_metrics(bucket, prefix, lambda_async_number, lambda_time_duration, total_time_flow_execution_seconds, start_after, last_verified_key,
+                  keys_success_per_lambda, keys_failed_per_lambda, total_keys_success_per_prefix, total_keys_failed_per_prefix)
         break
 
       logger.info('contents {}'.format(contents))
-      #sleep_test(5)
+      #sleep_test(2)
       for content in contents:
         key = content['Key']
         data_response = s3.get_object(Bucket=bucket, Key=key)
@@ -154,9 +185,22 @@ def lambda_handler(event, context):
         is_recovery_key_removed = process_file(bucket, key)
         if is_recovery_key_removed == False:
           last_verified_key = key
+          keys_failed_per_lambda = keys_failed_per_lambda + 1
+        else:
+          keys_success_per_lambda = keys_success_per_lambda + 1
         stop_processing = verify_lambda_exec_time_exceeded(datetime_lambda_start, lambda_working_limit_seconds)
         if stop_processing == True:
-          do_async_lambda_call(action_process_prefix, lambda_async_number + 1, prefix, last_verified_key, context.function_name)
+          lambda_time_duration = calculate_duration(datetime_lambda_start)
+          total_time_flow_execution_seconds = total_time_flow_execution_seconds + lambda_time_duration
+          total_keys_success_per_prefix = total_keys_success_per_prefix + keys_success_per_lambda
+          total_keys_failed_per_prefix = total_keys_failed_per_prefix + keys_failed_per_lambda
+
+          do_async_lambda_call(action_process_prefix, lambda_async_number + 1, prefix, last_verified_key, context.function_name,
+                               total_time_flow_execution_seconds, total_keys_success_per_prefix, total_keys_failed_per_prefix)
+
+          log_metrics(bucket, prefix, lambda_async_number, lambda_time_duration, total_time_flow_execution_seconds, start_after, last_verified_key,
+                      keys_success_per_lambda, keys_failed_per_lambda, total_keys_success_per_prefix, total_keys_failed_per_prefix)
+
           break
       kwargs['StartAfter'] = last_verified_key
   else:

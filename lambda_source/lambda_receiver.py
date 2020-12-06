@@ -157,16 +157,6 @@ def create_historical_recovery_key(content, bucket, historical_recovery_path):
   #logger.info('Generate historical recovery file {} in bucket {}'.format(historical_recovery_key, bucket))
   s3.put_object(Body=response_file_key.encode(), Bucket=bucket, Key=historical_recovery_key)
 
-def save_metrics_to_s3(bucket, historical_recovery_path_metadata, lambda_sender_id, result, save_result_to_s3, datetime_lambda_start):
-  if save_result_to_s3 == "yes" and historical_recovery_path_metadata:
-    total_verified_keys = "--verified-keys-{}--".format(result["total_verified_keys"])
-    total_created_not_processed_keys = "created-not-processed-keys-{}".format(result["total_created_not_processed_keys"])
-    datetime_finished = "--datetime-finished-{}".format(datetime.now().strftime("%H:%M:%S"))
-    lambda_time_duration = "--receiver-duration-{}".format(calculate_duration_and_format(datetime_lambda_start))
-    result_key = historical_recovery_path_metadata + "/" + "receivers-results" + "/" + lambda_sender_id + total_verified_keys + \
-                 total_created_not_processed_keys + datetime_finished + lambda_time_duration + "/" + lambda_sender_id + ".txt"
-    s3.put_object(Body="", Bucket=bucket, Key=result_key)
-
 def calculate_duration(datetime_start):
   datetime_end = datetime.now()
   return int((datetime_end - datetime_start).total_seconds())
@@ -179,6 +169,20 @@ def format_seconds(seconds):
     return "00 hours 00 min 00 sec"
   else:
     return time.strftime("%H hours %M min %S sec", time.gmtime(seconds))
+
+def log_metrics(bucket, prefix, result, lambda_sender_id, datetime_lambda_start):
+  metrics = json.dumps({
+    "bucket": bucket,
+    "prefix": prefix,
+    "id": str(lambda_sender_id) + "-" + prefix,
+    "lambdaStartTime": datetime_lambda_start.strftime("%m-%d-%Y %H:%M:%S"),
+    "lambdaEndTime": datetime_lambda_start.strftime("%m-%d-%Y %H:%M:%S"),
+    "lambdaDuration": calculate_duration_and_format(datetime_lambda_start),
+    "totalVerifiedKeys": result["total_verified_keys"],
+    "totalCreatedNotProcessedSuccessKeys": result["total_created_not_processed_keys"]
+    }
+  )
+  logger.info('SQS Receiver finished message processing {}'.format(metrics))
 
 def lambda_handler(event, context):
   datetime_lambda_start = datetime.now()
@@ -205,6 +209,6 @@ def lambda_handler(event, context):
 
     result = verify_not_processed_success_s3_keys(bucket, prefix, suffixes, verify_after_key, verify_to_key, last_modified_start_datetime,
                                                   last_modified_end_datetime, fetch_max_s3_keys_per_s3_listing_call, historical_recovery_path)
-    save_metrics_to_s3(bucket, historical_recovery_path_metadata, lambda_sender_id, result, save_result_to_s3, datetime_lambda_start)
+    log_metrics(bucket, prefix, result, lambda_sender_id, datetime_lambda_start)
 
   return "success"

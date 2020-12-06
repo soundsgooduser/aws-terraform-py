@@ -83,7 +83,7 @@ def create_prefixes(scan_date_from, scan_date_to):
   while next_scan_date < scan_date_to:
     next_scan_date = next_scan_date + timedelta(1)
     scan_date = next_scan_date.strftime('%m-%d-%Y')
-    for index in range(1, 6):
+    for index in range(0, 23):
       prefix = scan_date + "/" + str(index)
       prefixes.append(prefix)
   logger.info('Created {} prefixes {}'.format(len(prefixes), prefixes))

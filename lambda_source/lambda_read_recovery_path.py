@@ -77,6 +77,18 @@ def verify_lambda_exec_time_exceeded(datetime_lambda_start, lambda_working_limit
     return False
   return True
 
+def create_prefixes(scan_date_from, scan_date_to):
+  prefixes = []
+  next_scan_date = scan_date_from - timedelta(1)
+  while next_scan_date < scan_date_to:
+    next_scan_date = next_scan_date + timedelta(1)
+    scan_date = next_scan_date.strftime('%m-%d-%Y')
+    for index in range(1, 2):
+      prefix = scan_date + "/" + str(index)
+      prefixes.append(prefix)
+  logger.info('Created {} prefixes {}'.format(len(prefixes), prefixes))
+  return tuple(prefixes)
+
 def lambda_handler(event, context):
   datetime_lambda_start = datetime.now()
 
@@ -152,11 +164,14 @@ def lambda_handler(event, context):
 
   return "success"
 
-def process_file(bucket, key):
+def sleep_test(seconds):
+  logger.info("before sleep")
+  time.sleep(seconds)
+  logger.info("after sleep")
 
+def process_file(bucket, key):
   found1 = key.find("11111111.txt")
   found2 = key.find("333333333.txt")
-  #print(found)
   if found1 > 0 or found2 > 0:
     s3.delete_object(Bucket=bucket, Key=key)
     logger.info('Deleted key {}'.format(key))
@@ -164,20 +179,3 @@ def process_file(bucket, key):
   else:
     logger.info('Not deleted key {}'.format(key))
   return False;
-
-def create_prefixes(scan_date_from, scan_date_to):
-  prefixes = []
-  next_scan_date = scan_date_from - timedelta(1)
-  while next_scan_date < scan_date_to:
-    next_scan_date = next_scan_date + timedelta(1)
-    scan_date = next_scan_date.strftime('%m-%d-%Y')
-    for index in range(1, 2):
-      prefix = scan_date + "/" + str(index)
-      prefixes.append(prefix)
-  logger.info('Created {} prefixes {}'.format(len(prefixes), prefixes))
-  return tuple(prefixes)
-
-def sleep_test(seconds):
-  logger.info("before sleep")
-  time.sleep(seconds)
-  logger.info("after sleep")

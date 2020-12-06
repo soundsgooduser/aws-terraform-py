@@ -65,7 +65,6 @@ def verify_not_processed_success_s3_keys(bucket, prefix, suffixes, process_after
     time_exec_list_objects_v2.append("{} call returned {} keys for {}"
                                      .format(iteration, len_contents, format_seconds(datetime_list_objects_time_execution)))
     if len_contents == 0:
-      stop_processing = True
       logger.info("No keys to process returned from S3. Break iteration.")
       break
     datetime_verify_list_keys_start = datetime.now()
@@ -92,8 +91,7 @@ def verify_not_processed_success_s3_keys(bucket, prefix, suffixes, process_after
     datetime_verify_list_keys_end = datetime.now()
     datetime_verify_list_keys_time_exec = int((datetime_verify_list_keys_end - datetime_verify_list_keys_start).total_seconds())
     total_time_verify_all_keys = total_time_verify_all_keys + datetime_verify_list_keys_time_exec
-    if stop_processing:
-      break
+
   result = {
     "TotalVerifiedKeysPerLambda": total_verified_keys_per_lambda,
     "LastVerifiedKey": last_verified_key,

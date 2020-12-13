@@ -11,12 +11,8 @@ resource "aws_lambda_function" "lambda_function" {
     variables = {
       BUCKET_NAME = "all-transactions"
       HISTORICAL_RECOVERY_PATH = "historical-recovery-path"
-      PREFIXES = "us-east1"
-      SUFFIXES = ".json"
-      LAST_MODIFIED_START = "11/30/2020 00:00:00-0000"
-      LAST_MODIFIED_END = "12/30/2020 00:00:00-0000"
-      S3_KEYS_LISTING_LIMIT_PER_CALL = "4"
-      LAMBDA_EXECUTION_LIMIT_SECONDS = "5"
+      PREFIX = "us-east1"
+      S3_KEYS_LISTING_LIMIT_PER_CALL = "2"
       HISTORICAL_RECOVERY_PATH_METADATA = "historical-recovery-path-metadata"
     }
   }

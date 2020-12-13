@@ -42,7 +42,9 @@ resource "aws_iam_policy" "LambdaInline" {
         "dynamodb:Query",
         "dynamodb:Scan",
         "s3:*",
-        "lambda:InvokeFunction"
+        "lambda:InvokeFunction",
+        "athena:*",
+        "glue:*"
       ],
       "Resource": [
         "*"

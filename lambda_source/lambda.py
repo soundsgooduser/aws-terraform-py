@@ -6,7 +6,6 @@ import json
 import time
 
 from botocore.exceptions import ClientError
-from collections import namedtuple
 from datetime import datetime
 
 logger = logging.getLogger()
@@ -15,19 +14,9 @@ s3 = boto3.client('s3')
 lambda_client = boto3.client('lambda')
 athena_client = boto3.client('athena')
 
-params = {
-  'region': 'us-east-1',
-  'database': 'mxh_db',
-  'bucket': 'athena-results-real-responses',
-  'path': 'query-results',
-  'query': 'SELECT * FROM real_response_data'
-}
-
 def verify_not_processed_success_s3_keys(bucket, keys, historical_recovery_path):
-
   verified_keys = 0
   not_processed_success_keys = 0
-  total_time_verify_all_keys = 0
 
   datetime_verify_keys_start = datetime.now()
 
@@ -122,7 +111,7 @@ def results_to_df(results):
 
     listed_results.append(
       dict(zip(columns, values))
-  )
+    )
 
   return listed_results
 
@@ -131,10 +120,21 @@ def createKeys(prefix, res):
   for value in res:
     key = createKey(prefix, value)
     print("key >>> {}".format(key))
-    keys.append(key)
+    if key:
+      keys.append(key)
   return keys
 
 def createKey(prefix, row):
+  tenantId = row['tenantid']
+  applicationId = row['applicationid']
+  consumerId = row['consumerid']
+  referenceId = row['referenceid']
+  productOrchestrationId = row['productorchestrationid']
+  transactionId = row['transactionid']
+  if not tenantId or not applicationId or not consumerId or not referenceId or not productOrchestrationId or not transactionId:
+    logger.info("Row not valid to create key: {} ".format(row))
+    return ""
+
   return prefix + '/' + row['tenantid'] + '/' + row['applicationid'] + '/' + \
          row['consumerid'] + '/' + row['referenceid'] + '/response/' + row['productorchestrationid'] + \
          '/' + row['transactionid'] + '/' + 'Response.json'
@@ -159,17 +159,22 @@ def lambda_handler(event, context):
   bucket = environment_vars["bucket"]
   prefix = environment_vars["prefix"]
 
+  datetime_get_query_results_start = datetime.now()
+
   if next_token:
     response_query_result = athena_client.get_query_results(
-        QueryExecutionId = query_execution_id,
-        MaxResults = s3_keys_listing_limit_per_call,
-        NextToken = next_token
+      QueryExecutionId = query_execution_id,
+      MaxResults = s3_keys_listing_limit_per_call,
+      NextToken = next_token
     )
   else:
     response_query_result = athena_client.get_query_results(
-        QueryExecutionId = query_execution_id,
-        MaxResults = s3_keys_listing_limit_per_call
+      QueryExecutionId = query_execution_id,
+      MaxResults = s3_keys_listing_limit_per_call
     )
+
+  datetime_get_query_results_end = datetime.now()
+  get_query_results_time_execution = int((datetime_get_query_results_end - datetime_get_query_results_start).total_seconds())
 
   print("res >>> {}".format(response_query_result))
   res = results_to_df(response_query_result)
@@ -191,16 +196,17 @@ def lambda_handler(event, context):
 
 
   statsPayload = json.dumps({"bucket": bucket,
-                              "prefix": prefix,
-                              "lambdaAsyncNumber": lambda_async_number,
-                              "timeLambdaExecution": format_seconds(lambda_time_execution),
-                              "totalTimeFlowExecution": format_seconds(total_time_flow_execution),
-                              "totalVerifiedKeysPerLambda": total_verified_keys_per_lambda,
-                              "foundNotProcessedSuccessKeysPerLambda": len_not_processed_keys,
-                              "totalVerifiedKeysPerPrefix": total_verified_keys_per_prefix,
-                              "foundNotProcessedSuccessKeysPerPrefix": total_not_processed_success_keys_per_prefix,
-                              "totalTimeVerifyAllKeysPerLambda": total_time_verify_all_keys_per_lambda
-                               })
+                             "prefix": prefix,
+                             "lambdaAsyncNumber": lambda_async_number,
+                             "timeLambdaExecution": format_seconds(lambda_time_execution),
+                             "totalTimeFlowExecution": format_seconds(total_time_flow_execution),
+                             "totalVerifiedKeysPerLambda": total_verified_keys_per_lambda,
+                             "foundNotProcessedSuccessKeysPerLambda": len_not_processed_keys,
+                             "totalVerifiedKeysPerPrefix": total_verified_keys_per_prefix,
+                             "foundNotProcessedSuccessKeysPerPrefix": total_not_processed_success_keys_per_prefix,
+                             "totalTimeVerifyAllKeysPerLambda": total_time_verify_all_keys_per_lambda,
+                             "getQueryResultsTimeExecution": get_query_results_time_execution
+                             })
 
   logger.info('Asynchronous lambda execution finished {}'.format(statsPayload))
 
@@ -210,19 +216,19 @@ def lambda_handler(event, context):
     next_token = ""
 
   if next_token:
-      payload = json.dumps({
-        "queryExecutionId": query_execution_id,
-        "nextToken": next_token,
-        "lambdaAsyncNumber": lambda_async_number + 1,
-        "totalTimeFlowExecSeconds": total_time_flow_execution,
-        "totalVerifiedKeysPerPrefix": total_verified_keys_per_prefix,
-        "totalNotProcessedSuccessKeysPerPrefix": total_not_processed_success_keys_per_prefix
-      })
-      lambda_client.invoke(
-          FunctionName=context.function_name,
-          InvocationType='Event',
-          Payload=payload
-      )
+    payload = json.dumps({
+      "queryExecutionId": query_execution_id,
+      "nextToken": next_token,
+      "lambdaAsyncNumber": lambda_async_number + 1,
+      "totalTimeFlowExecSeconds": total_time_flow_execution,
+      "totalVerifiedKeysPerPrefix": total_verified_keys_per_prefix,
+      "totalNotProcessedSuccessKeysPerPrefix": total_not_processed_success_keys_per_prefix
+    })
+    lambda_client.invoke(
+      FunctionName=context.function_name,
+      InvocationType='Event',
+      Payload=payload
+    )
   else:
     logger.info('Data processing finished for bucket {} and prefix {}'.format(bucket, prefix))
 

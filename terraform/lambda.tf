@@ -9,10 +9,10 @@ resource "aws_lambda_function" "lambda_function" {
 
   environment {
     variables = {
-      BUCKET_NAME = "all-transactions"
+      BUCKET_NAME = "all-my-transactions"
       HISTORICAL_RECOVERY_PATH = "historical-recovery-path"
-      PREFIX = "us-east1"
-      S3_KEYS_LISTING_LIMIT_PER_CALL = "2"
+      PREFIX = "us-east-1"
+      MAX_ROWS_PER_GET_QUERY_RESULTS_CALL = "100"
       HISTORICAL_RECOVERY_PATH_METADATA = "historical-recovery-path-metadata"
     }
   }

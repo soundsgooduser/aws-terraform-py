@@ -21,11 +21,13 @@ def verify_not_processed_success_s3_keys(bucket, keys, historical_recovery_path)
   datetime_verify_keys_start = datetime.now()
 
   for key in keys:
-    verified_keys = verified_keys + 1
-    key_exists = verify_key_processed_success_exists_in_s3(bucket, key)
-    if not key_exists:
-      create_historical_recovery_key(bucket, key, historical_recovery_path)
-      not_processed_success_keys = not_processed_success_keys + 1
+    processed_success_key = create_processed_success_key(bucket, key)
+    if processed_success_key:
+      verified_keys = verified_keys + 1
+      key_exists = verify_key_processed_success_exists_in_s3(bucket, key, processed_success_key)
+      if not key_exists:
+        create_historical_recovery_key(bucket, key, historical_recovery_path)
+        not_processed_success_keys = not_processed_success_keys + 1
 
   datetime_verify_keys_end = datetime.now()
   total_time_verify_all_keys = int((datetime_verify_keys_end - datetime_verify_keys_start).total_seconds())
@@ -37,17 +39,23 @@ def verify_not_processed_success_s3_keys(bucket, keys, historical_recovery_path)
   }
   return result
 
-def verify_key_processed_success_exists_in_s3(bucket, key):
-  data_response = s3.get_object(Bucket=bucket, Key=key)
-  json_data_response = data_response['Body'].read().decode('utf-8')
-  id = hashlib.md5(json_data_response.encode('utf-8')).hexdigest()
-  processed_success_key = key.replace('/Response.json', '.' + id + '.ods.processed.success')
+def create_processed_success_key(bucket, key):
+  try:
+    data_response = s3.get_object(Bucket=bucket, Key=key)
+    json_data_response = data_response['Body'].read().decode('utf-8')
+    id = hashlib.md5(json_data_response.encode('utf-8')).hexdigest()
+    return key.replace('/Response.json', '.' + id + '.ods.processed.success')
+  except ClientError:
+    logger.error("Attempt to get not existing key from S3 {}".format(key))
+    return ""
+
+def verify_key_processed_success_exists_in_s3(bucket, key, processed_success_key):
   try:
     #check if success marker file exists
     s3.get_object(Bucket=bucket, Key=processed_success_key)
     #exists, file processed
-    logger.info('Exists processed success key {} for file {} in bucket {} '
-                .format(processed_success_key, key, bucket))
+    #logger.info('Exists processed success key {} for file {} in bucket {} '
+    #            .format(processed_success_key, key, bucket))
     return True
   except ClientError:
     #does not exist, file not processed
@@ -56,7 +64,6 @@ def verify_key_processed_success_exists_in_s3(bucket, key):
     return False
 
 def create_historical_recovery_key(bucket, key, historical_recovery_path):
-  logger.info("key>>>>>>>>> {}".format(key))
   file_name = key.rsplit('/', 1)[-2] #transactionID
   historical_recovery_key = historical_recovery_path + '/' + file_name + '.txt'
   logger.info('Generate historical recovery file {} in bucket {}'.format(historical_recovery_key, bucket))
@@ -66,15 +73,18 @@ def read_and_validate_environment_vars():
   bucket_name = os.environ["BUCKET_NAME"]
   if not bucket_name:
     raise Exception("bucket_name is not defined")
+
   historical_recovery_path = os.environ["HISTORICAL_RECOVERY_PATH"]
   if not historical_recovery_path:
     raise Exception("historical_recovery_path is not defined")
+
   prefix = os.environ["PREFIX"]
   if not prefix:
     raise Exception("prefix is not defined")
-  s3_keys_listing_limit_per_call = os.environ["S3_KEYS_LISTING_LIMIT_PER_CALL"]
-  if not s3_keys_listing_limit_per_call:
-    raise Exception("s3_keys_listing_limit_per_call is not defined")
+
+  max_rows_per_get_query_results_call = os.environ["MAX_ROWS_PER_GET_QUERY_RESULTS_CALL"]
+  if not max_rows_per_get_query_results_call:
+    raise Exception("max_rows_per_get_query_results_call is not defined")
 
   historical_recovery_path_metadata = os.environ["HISTORICAL_RECOVERY_PATH_METADATA"]
 
@@ -82,7 +92,7 @@ def read_and_validate_environment_vars():
     "bucket": bucket_name,
     "historical_recovery_path": historical_recovery_path,
     "prefix": prefix,
-    "s3_keys_listing_limit_per_call": int(s3_keys_listing_limit_per_call),
+    "max_rows_per_get_query_results_call": int(max_rows_per_get_query_results_call),
     "historical_recovery_path_metadata": historical_recovery_path_metadata
   }
   return environment_vars
@@ -93,51 +103,56 @@ def format_seconds(seconds):
   else:
     return time.strftime("%H hours %M min %S sec", time.gmtime(seconds))
 
-def results_to_df(results):
-
+def convert_query_results(input):
   columns = [
     col['Label']
-    for col in results['ResultSet']['ResultSetMetadata']['ColumnInfo']
+    for col in input['ResultSet']['ResultSetMetadata']['ColumnInfo']
   ]
 
-  listed_results = []
-  for res in results['ResultSet']['Rows'][1:]:
+  results = []
+  for res in input['ResultSet']['Rows'][1:]:
     values = []
-    for field in res['Data']:
+    for data in res['Data']:
       try:
-        values.append(list(field.values())[0])
+        values.append(list(data.values())[0])
       except:
         values.append(' ')
 
-    listed_results.append(
+    results.append(
       dict(zip(columns, values))
     )
 
-  return listed_results
+  return results
 
 def createKeys(prefix, res):
-  keys = []
+  keys = set()
   for value in res:
     key = createKey(prefix, value)
-    print("key >>> {}".format(key))
     if key:
-      keys.append(key)
+      keys.add(key)
   return keys
 
 def createKey(prefix, row):
-  tenantId = row['tenantid']
-  applicationId = row['applicationid']
-  consumerId = row['consumerid']
-  referenceId = row['referenceid']
-  productOrchestrationId = row['productorchestrationid']
-  transactionId = row['transactionid']
+  tenantId = row['tenantid'].strip()
+  applicationId = row['applicationid'].strip()
+  consumerId = row['consumerid'].strip()
+  referenceId = row['referenceid'].strip()
+  productOrchestrationId = row['productorchestrationid'].strip()
+  transactionId = row['transactionid'].strip()
+  errors = row['errors'].strip()
+
   if not tenantId or not applicationId or not consumerId or not referenceId or not productOrchestrationId or not transactionId:
     logger.info("Row not valid to create key: {} ".format(row))
     return ""
 
-  return prefix + '/' + row['tenantid'] + '/' + row['applicationid'] + '/' + \
-         row['consumerid'] + '/' + row['referenceid'] + '/response/' + row['productorchestrationid'] + \
-         '/' + row['transactionid'] + '/' + 'Response.json'
+  if errors:
+    return prefix + '/' + tenantId + '/' + applicationId + '/' + consumerId + '/' + \
+           referenceId + '/' + 'errors' + '/' + \
+           transactionId + '/' + 'Response.json'
+  else:
+    return prefix + '/' + tenantId + '/' + applicationId + '/' + consumerId + '/' + \
+         referenceId + '/' + 'response' + '/' + productOrchestrationId + '/' + \
+         transactionId + '/' + 'Response.json'
 
 def lambda_handler(event, context):
   datetime_lambda_start = datetime.now()
@@ -154,7 +169,7 @@ def lambda_handler(event, context):
   total_not_processed_success_keys_per_prefix = json_object['totalNotProcessedSuccessKeysPerPrefix']
 
   environment_vars = read_and_validate_environment_vars()
-  s3_keys_listing_limit_per_call = environment_vars["s3_keys_listing_limit_per_call"]
+  max_rows_per_get_query_results_call = environment_vars["max_rows_per_get_query_results_call"]
   historical_recovery_path = environment_vars["historical_recovery_path"]
   bucket = environment_vars["bucket"]
   prefix = environment_vars["prefix"]
@@ -164,24 +179,21 @@ def lambda_handler(event, context):
   if next_token:
     response_query_result = athena_client.get_query_results(
       QueryExecutionId = query_execution_id,
-      MaxResults = s3_keys_listing_limit_per_call,
+      MaxResults = max_rows_per_get_query_results_call,
       NextToken = next_token
     )
   else:
     response_query_result = athena_client.get_query_results(
       QueryExecutionId = query_execution_id,
-      MaxResults = s3_keys_listing_limit_per_call
+      MaxResults = max_rows_per_get_query_results_call
     )
 
   datetime_get_query_results_end = datetime.now()
   get_query_results_time_execution = int((datetime_get_query_results_end - datetime_get_query_results_start).total_seconds())
 
-  print("res >>> {}".format(response_query_result))
-  res = results_to_df(response_query_result)
-  print("res >>> {}".format(res))
-
+  res = convert_query_results(response_query_result)
   keys = createKeys(prefix, res)
-  print("KEYS >>> {}".format(keys))
+  logger.info("Created keys to verify {}".format(keys))
 
   result = verify_not_processed_success_s3_keys(bucket, keys, historical_recovery_path)
 
@@ -194,7 +206,6 @@ def lambda_handler(event, context):
   total_not_processed_success_keys_per_prefix = total_not_processed_success_keys_per_prefix + len_not_processed_keys
   total_verified_keys_per_prefix = total_verified_keys_per_prefix + total_verified_keys_per_lambda
 
-
   statsPayload = json.dumps({"bucket": bucket,
                              "prefix": prefix,
                              "lambdaAsyncNumber": lambda_async_number,
@@ -205,7 +216,7 @@ def lambda_handler(event, context):
                              "totalVerifiedKeysPerPrefix": total_verified_keys_per_prefix,
                              "foundNotProcessedSuccessKeysPerPrefix": total_not_processed_success_keys_per_prefix,
                              "totalTimeVerifyAllKeysPerLambda": total_time_verify_all_keys_per_lambda,
-                             "getQueryResultsTimeExecution": get_query_results_time_execution
+                             "getQueryResultsTimeExecution": format_seconds(get_query_results_time_execution)
                              })
 
   logger.info('Asynchronous lambda execution finished {}'.format(statsPayload))
@@ -233,8 +244,3 @@ def lambda_handler(event, context):
     logger.info('Data processing finished for bucket {} and prefix {}'.format(bucket, prefix))
 
   return "success"
-
-def sleep_test(seconds):
-  logger.info("before sleep")
-  time.sleep(seconds)
-  logger.info("after sleep")

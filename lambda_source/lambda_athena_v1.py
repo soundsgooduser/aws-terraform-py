@@ -4,7 +4,6 @@ import boto3
 import hashlib
 import json
 import time
-import dateutil.parser as dp
 
 from botocore.exceptions import ClientError
 from datetime import datetime
@@ -21,21 +20,14 @@ def verify_not_processed_success_s3_keys(bucket, keys, historical_recovery_path)
 
   datetime_verify_keys_start = datetime.now()
 
-  for key_data in keys:
-    key = key_data["key"]
-    timestamp = key_data["timestamp"]
+  for key in keys:
     processed_success_key = create_processed_success_key(bucket, key)
-    logger.info("processed_success_key {}".format(processed_success_key))
     if processed_success_key:
       verified_keys = verified_keys + 1
       key_exists = verify_key_processed_success_exists_in_s3(bucket, key, processed_success_key)
       if not key_exists:
-        processed_success_key = processed_success_key + '.' + timestamp
-        logger.info("processed_success_key with timestamp {}".format(processed_success_key))
-        key_exists = verify_key_processed_success_exists_in_s3(bucket, key, processed_success_key)
-        if not key_exists:
-          create_historical_recovery_key(bucket, key, timestamp, historical_recovery_path)
-          not_processed_success_keys = not_processed_success_keys + 1
+        create_historical_recovery_key(bucket, key, historical_recovery_path)
+        not_processed_success_keys = not_processed_success_keys + 1
 
   datetime_verify_keys_end = datetime.now()
   total_time_verify_all_keys = int((datetime_verify_keys_end - datetime_verify_keys_start).total_seconds())
@@ -71,12 +63,9 @@ def verify_key_processed_success_exists_in_s3(bucket, key, processed_success_key
                 .format(processed_success_key, key, bucket))
     return False
 
-def create_historical_recovery_key(bucket, key, timestamp, historical_recovery_path):
+def create_historical_recovery_key(bucket, key, historical_recovery_path):
   file_name = key.rsplit('/', 1)[-2] #transactionID
-  last_modified_datetime = dp.parse(timestamp)
-  date_path = last_modified_datetime.strftime("%m-%d-%Y")
-  hour_path = str(last_modified_datetime.hour)
-  historical_recovery_key = historical_recovery_path + '/' + date_path + '/' + hour_path + '/' + file_name + '.txt'
+  historical_recovery_key = historical_recovery_path + '/' + file_name + '.txt'
   logger.info('Generate historical recovery file {} in bucket {}'.format(historical_recovery_key, bucket))
   s3.put_object(Body=key.encode(), Bucket=bucket, Key=historical_recovery_key)
 
@@ -130,17 +119,17 @@ def convert_query_results(input):
         values.append(' ')
 
     results.append(
-        dict(zip(columns, values))
+      dict(zip(columns, values))
     )
 
   return results
 
 def createKeys(prefix, res):
-  keys = []
+  keys = set()
   for value in res:
     key = createKey(prefix, value)
     if key:
-      keys.append(key)
+      keys.add(key)
   return keys
 
 def createKey(prefix, row):
@@ -150,20 +139,20 @@ def createKey(prefix, row):
   referenceId = row['referenceid'].strip()
   productOrchestrationId = row['productorchestrationid'].strip()
   transactionId = row['transactionid'].strip()
-  timestamp = row["timestamp"]
+  errors = row['errors'].strip()
 
   if not tenantId or not applicationId or not consumerId or not referenceId or not productOrchestrationId or not transactionId:
     logger.info("Row not valid to create key: {} ".format(row))
     return ""
 
-  key = prefix + '/' + tenantId + '/' + applicationId + '/' + consumerId + '/' + \
-          referenceId + '/' + 'response' + '/' + productOrchestrationId + '/' + \
-          transactionId + '/' + 'Response.json'
-
-  return {
-    "key":  key,
-    "timestamp": timestamp
-  }
+  if errors:
+    return prefix + '/' + tenantId + '/' + applicationId + '/' + consumerId + '/' + \
+           referenceId + '/' + 'errors' + '/' + \
+           transactionId + '/' + 'Response.json'
+  else:
+    return prefix + '/' + tenantId + '/' + applicationId + '/' + consumerId + '/' + \
+         referenceId + '/' + 'response' + '/' + productOrchestrationId + '/' + \
+         transactionId + '/' + 'Response.json'
 
 def lambda_handler(event, context):
   datetime_lambda_start = datetime.now()
@@ -189,14 +178,14 @@ def lambda_handler(event, context):
 
   if next_token:
     response_query_result = athena_client.get_query_results(
-        QueryExecutionId = query_execution_id,
-        MaxResults = max_rows_per_get_query_results_call,
-        NextToken = next_token
+      QueryExecutionId = query_execution_id,
+      MaxResults = max_rows_per_get_query_results_call,
+      NextToken = next_token
     )
   else:
     response_query_result = athena_client.get_query_results(
-        QueryExecutionId = query_execution_id,
-        MaxResults = max_rows_per_get_query_results_call
+      QueryExecutionId = query_execution_id,
+      MaxResults = max_rows_per_get_query_results_call
     )
 
   datetime_get_query_results_end = datetime.now()
@@ -247,9 +236,9 @@ def lambda_handler(event, context):
       "totalNotProcessedSuccessKeysPerPrefix": total_not_processed_success_keys_per_prefix
     })
     lambda_client.invoke(
-        FunctionName=context.function_name,
-        InvocationType='Event',
-        Payload=payload
+      FunctionName=context.function_name,
+      InvocationType='Event',
+      Payload=payload
     )
   else:
     logger.info('Data processing finished for bucket {} and prefix {}'.format(bucket, prefix))

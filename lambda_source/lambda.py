@@ -7,7 +7,7 @@ import time
 
 from botocore.exceptions import ClientError
 from collections import namedtuple
-from datetime import datetime
+from datetime import timedelta, datetime
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -29,7 +29,7 @@ last_modified_rules = {
 def verify_not_processed_success_s3_keys(bucket, prefix, suffixes, process_after_key_name, s3_keys_listing_limit_per_call,
     last_modified_start_datetime, last_modified_end_datetime, datetime_lambda_start,
     lambda_execution_limit_seconds, historical_recovery_path,
-    total_not_processed_success_keys_per_prefix, max_keys_per_historical_path_prefix):
+    max_keys_per_historical_path_prefix, total_found_not_processed_keys_per_days):
   # Use the last_modified_rules dict to lookup which conditional logic to apply
   # based on which arguments were supplied
   last_modified_rule = last_modified_rules[bool(last_modified_start_datetime), bool(last_modified_end_datetime)]
@@ -82,9 +82,10 @@ def verify_not_processed_success_s3_keys(bucket, prefix, suffixes, process_after
           verify_key_processed_success_exists_in_s3(bucket, file_key) == False
       ):
         not_processed_success_keys = not_processed_success_keys + 1
-        total_keys = total_not_processed_success_keys_per_prefix + not_processed_success_keys
-        historical_path_prefix = create_historical_path_prefix(total_keys, max_keys_per_historical_path_prefix)
-        create_historical_recovery_key(content, bucket, historical_recovery_path, historical_path_prefix)
+        key_last_modified_date = last_modified_datetime.strftime('%m-%d-%Y')
+        total_keys_per_day = update_and_get_total_found_not_processed_keys_per_day(key_last_modified_date, total_found_not_processed_keys_per_days)
+        historical_path_prefix_number = create_historical_path_prefix_number(total_keys_per_day, max_keys_per_historical_path_prefix)
+        create_historical_recovery_key(content, bucket, historical_recovery_path, historical_path_prefix_number, key_last_modified_date)
 
       current_datetime_lambda = datetime.now()
       lambda_exec_seconds = int((current_datetime_lambda - datetime_lambda_start).total_seconds())
@@ -138,10 +139,12 @@ def verify_key_processed_success_exists_in_s3(bucket, key):
     #            .format(processed_success_key, key, bucket))
     return False
 
-def create_historical_recovery_key(content, bucket, historical_recovery_path, historical_path_prefix):
+def create_historical_recovery_key(content, bucket, historical_recovery_path,
+    historical_path_prefix_number, key_last_modified_date):
   response_file_key = content["Key"]
   file_name = response_file_key.rsplit('/', 1)[-2] #transactionID
-  historical_recovery_key = historical_recovery_path + '/' + str(historical_path_prefix) + '/' + file_name + '.txt'
+  historical_recovery_key = historical_recovery_path + '/' + key_last_modified_date + '/' + \
+                            str(historical_path_prefix_number) + '/' + file_name + '.txt'
   logger.info('Generate historical recovery file {} in bucket {}'.format(historical_recovery_key, bucket))
   s3.put_object(Body=response_file_key.encode(), Bucket=bucket, Key=historical_recovery_key)
 
@@ -161,10 +164,6 @@ def read_and_validate_environment_vars():
   suffixes = os.environ["SUFFIXES"]
   if not suffixes:
     raise Exception("suffixes are not defined")
-
-  s3_keys_listing_limit_per_call = os.environ["S3_KEYS_LISTING_LIMIT_PER_CALL"]
-  if not s3_keys_listing_limit_per_call:
-    raise Exception("s3_keys_listing_limit_per_call is not defined")
 
   s3_keys_listing_limit_per_call = os.environ["S3_KEYS_LISTING_LIMIT_PER_CALL"]
   if not s3_keys_listing_limit_per_call:
@@ -237,16 +236,37 @@ def verify_stop_flow_execution_flag(bucket, historical_recovery_path_metadata, p
   except ClientError:
     return False
 
-def create_historical_path_prefix(total_not_processed_success_keys_per_prefix, max_keys_per_historical_path_prefix):
-  logger.info("total_not_processed_success_keys_per_prefix {} and max_keys_per_historical_path_prefix {}".format(total_not_processed_success_keys_per_prefix, max_keys_per_historical_path_prefix))
+def create_historical_path_prefix_number(total_not_processed_success_keys_per_day, max_keys_per_historical_path_prefix):
+  logger.info("total_not_processed_success_keys_per_prefix {} and max_keys_per_historical_path_prefix {}".format(total_not_processed_success_keys_per_day, max_keys_per_historical_path_prefix))
   historical_path_prefix = 1
-  if total_not_processed_success_keys_per_prefix > max_keys_per_historical_path_prefix:
-    value = total_not_processed_success_keys_per_prefix % max_keys_per_historical_path_prefix
+  if total_not_processed_success_keys_per_day > max_keys_per_historical_path_prefix:
+    value = total_not_processed_success_keys_per_day % max_keys_per_historical_path_prefix
     if value == 0:
-      historical_path_prefix = int(total_not_processed_success_keys_per_prefix / max_keys_per_historical_path_prefix)
+      historical_path_prefix = int(total_not_processed_success_keys_per_day / max_keys_per_historical_path_prefix)
     else:
-      historical_path_prefix = int(total_not_processed_success_keys_per_prefix / max_keys_per_historical_path_prefix) + 1
+      historical_path_prefix = int(total_not_processed_success_keys_per_day / max_keys_per_historical_path_prefix) + 1
   return historical_path_prefix
+
+def create_total_found_not_processed_keys_per_days(start_datetime, end_datetime):
+  start_date = start_datetime.strftime('%m-%d-%Y')
+  result = {start_date: 0}
+  temp_date_time = start_datetime
+  if start_datetime == end_datetime:
+    return result
+  while True:
+    next_date_time = temp_date_time + timedelta(1)
+    temp_date_time = next_date_time
+    next_date = next_date_time.strftime('%m-%d-%Y')
+    result[next_date] = 0
+    if next_date_time == end_datetime:
+      break
+  return result
+
+def update_and_get_total_found_not_processed_keys_per_day(key_last_modified_date, total_found_not_processed_keys_per_days):
+  total_not_processed_keys = total_found_not_processed_keys_per_days.get(key_last_modified_date)
+  total_not_processed_keys = total_not_processed_keys + 1
+  total_found_not_processed_keys_per_days[key_last_modified_date] = total_not_processed_keys
+  return total_not_processed_keys
 
 def lambda_handler(event, context):
   datetime_lambda_start = datetime.now()
@@ -284,6 +304,7 @@ def lambda_handler(event, context):
                         historical_recovery_path_metadata, max_keys_per_historical_path_prefix))
 
     for prefix in prefixes:
+      total_found_not_processed_keys_per_days = create_total_found_not_processed_keys_per_days(last_modified_start_datetime, last_modified_end_datetime)
       payload = json.dumps({"action": action_process_prefix,
                             "lambdaAsyncNumber": 1,
                             "totalTimeFlowExecSeconds": 0,
@@ -292,7 +313,9 @@ def lambda_handler(event, context):
                             "metadata": {
                               "prefix": prefix,
                               "lastVerifiedKey": ""
-                            }})
+                            },
+                            "totalFoundNotProcessedKeysPerDays": total_found_not_processed_keys_per_days
+                            })
       lambda_client.invoke(
           FunctionName=context.function_name,
           InvocationType='Event',
@@ -306,6 +329,7 @@ def lambda_handler(event, context):
     total_time_flow_execution = json_object['totalTimeFlowExecSeconds']
     total_verified_keys_per_prefix = json_object['totalVerifiedKeysPerPrefix']
     total_not_processed_success_keys_per_prefix = json_object['totalNotProcessedSuccessKeysPerPrefix']
+    total_found_not_processed_keys_per_days = json_object['totalFoundNotProcessedKeysPerDays']
 
     stop_flow_execution = verify_stop_flow_execution_flag(bucket, historical_recovery_path_metadata, prefix)
     if stop_flow_execution:
@@ -315,7 +339,7 @@ def lambda_handler(event, context):
     result = verify_not_processed_success_s3_keys(bucket, prefix, suffixes, process_after_key_name, s3_keys_listing_limit_per_call,
                        last_modified_start_datetime, last_modified_end_datetime, datetime_lambda_start,
                        lambda_execution_limit_seconds, historical_recovery_path,
-                       total_not_processed_success_keys_per_prefix, max_keys_per_historical_path_prefix)
+                       max_keys_per_historical_path_prefix, total_found_not_processed_keys_per_days)
 
     len_not_processed_keys = result["NotProcessedSuccessKeys"]
     total_verified_keys_per_lambda = result["TotalVerifiedKeysPerLambda"]
@@ -341,7 +365,9 @@ def lambda_handler(event, context):
                             "metadata": {
                               "prefix": prefix,
                               "lastVerifiedKey": last_verified_key
-                            }})
+                            },
+                            "totalFoundNotProcessedKeysPerDays": total_found_not_processed_keys_per_days
+                            })
       lambda_client.invoke(
           FunctionName=context.function_name,
           InvocationType='Event',
@@ -356,12 +382,13 @@ def lambda_handler(event, context):
                                "verifiedKeyFromName": process_after_key_name,
                                "verifiedKeyToName": last_verified_key,
                                "totalVerifiedKeysPerLambda": total_verified_keys_per_lambda,
-                               "foundNotProcessedSuccessKeysPerLambda": len_not_processed_keys,
+                               "totalTimeVerifyAllKeysPerLambda": total_time_verify_all_keys_per_lambda,
                                "totalVerifiedKeysPerPrefix": total_verified_keys_per_prefix,
-                               "foundNotProcessedSuccessKeysPerPrefix": total_not_processed_success_keys_per_prefix,
                                "totalTimeExecListObjectsV2": total_time_exec_list_objects_v2,
                                "timeExecListObjectsV2PerCall": time_exec_list_objects_v2_per_call,
-                               "totalTimeVerifyAllKeysPerLambda": total_time_verify_all_keys_per_lambda
+                               "foundNotProcessedSuccessKeysPerLambda": len_not_processed_keys,
+                               "totalFoundNotProcessedSuccessKeysPerPrefix": total_not_processed_success_keys_per_prefix,
+                               "totalFoundNotProcessedSuccessKeysPerDays": total_found_not_processed_keys_per_days
                                })
     logger.info('Asynchronous lambda execution finished {}'.format(statsPayload))
 

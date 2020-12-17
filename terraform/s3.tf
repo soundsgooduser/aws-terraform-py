@@ -388,3 +388,52 @@ resource "aws_s3_bucket_object" "object_transaction66666666666" {
 //  source = "../files/9.txt"
 //  force_destroy = true
 //}
+
+resource "aws_s3_bucket_object" "object_transaction_6123" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "us-east1/company/demo3/object_transaction_6123/111ef123/response/device/object_transaction_6123/Response.json"
+  source = "../files/transaction6.json"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_object" "object_transaction_6124" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "us-east1/company/demo3/object_transaction_6124/111ef123/response/device/object_transaction_6124/Response.json"
+  source = "../files/transaction6.json"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_object" "object_transaction_6125" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "us-east1/company/demo3/object_transaction_6125/111ef123/response/device/object_transaction_6125/Response.json"
+  source = "../files/transaction6.json"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_object" "object_transaction_6126" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "us-east1/company/demo3/object_transaction_6126/111ef123/response/device/object_transaction_6126/Response.json"
+  source = "../files/transaction6.json"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_object" "object_transaction_6127" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "us-east1/company/demo3/object_transaction_6127/111ef123/response/device/object_transaction_6127/Response.json"
+  source = "../files/transaction6.json"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_object" "object_transaction_6128" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "us-east1/company/demo3/object_transaction_6128/111ef123/response/device/object_transaction_6128/Response.json"
+  source = "../files/transaction6.json"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_object" "object_transaction_6129" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "us-east1/company/demo3/object_transaction_6129/111ef123/response/device/object_transaction_6129/Response.json"
+  source = "../files/transaction6.json"
+  force_destroy = true
+}

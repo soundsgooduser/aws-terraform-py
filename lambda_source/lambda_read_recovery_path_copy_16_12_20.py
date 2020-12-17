@@ -24,6 +24,14 @@ def read_and_validate_environment_vars():
   if not fetch_max_s3_keys_per_s3_listing_call:
     raise Exception("fetch_max_s3_keys_per_s3_listing_call is not defined")
 
+  scan_date_start = os.environ["SCAN_DATE_START"]
+  if not scan_date_start:
+    raise Exception("scan_date_start is not defined")
+
+  scan_date_end = os.environ["SCAN_DATE_END"]
+  if not scan_date_end:
+    raise Exception("scan_date_end is not defined")
+
   lambda_working_limit_seconds = os.environ["LAMBDA_WORKING_LIMIT_SECONDS"]
   if not lambda_working_limit_seconds:
     raise Exception("lambda_working_limit_seconds is not defined")
@@ -31,6 +39,8 @@ def read_and_validate_environment_vars():
   environment_vars = {
     "bucket": bucket_name,
     "historical_recovery_path": historical_recovery_path,
+    "scan_date_start": scan_date_start,
+    "scan_date_end": scan_date_end,
     "fetch_max_s3_keys_per_s3_listing_call": int(fetch_max_s3_keys_per_s3_listing_call),
     "lambda_working_limit_seconds": int(lambda_working_limit_seconds)
   }
@@ -71,11 +81,14 @@ def verify_lambda_exec_time_exceeded(datetime_lambda_start, lambda_working_limit
     return False
   return True
 
-def create_prefixes(star_prefix, end_prefix):
-  star_prefix = int(star_prefix)
-  end_prefix = int(end_prefix)
+def create_prefixes(scan_date_from, scan_date_to):
   prefixes = []
-  for prefix in range(star_prefix, end_prefix + 1):
+  next_scan_date = scan_date_from - timedelta(1)
+  while next_scan_date < scan_date_to:
+    next_scan_date = next_scan_date + timedelta(1)
+    scan_date = next_scan_date.strftime('%m-%d-%Y')
+    for index in range(0, 23):
+      prefix = scan_date + "/" + str(index)
       prefixes.append(prefix)
   logger.info('Created {} prefixes {}'.format(len(prefixes), prefixes))
   return tuple(prefixes)
@@ -94,7 +107,7 @@ def log_metrics(bucket, prefix, lambda_async_number, lambda_time_execution, tota
                         "totalKeysSuccessPerPrefix": total_keys_success_per_prefix,
                         "totalKeysFailedPerPrefix": total_keys_failed_per_prefix
                         }
-                      )
+                       )
   logger.info('Finished recovery keys processing {}'.format(metrics))
 
 def lambda_handler(event, context):
@@ -110,24 +123,27 @@ def lambda_handler(event, context):
   environment_vars = read_and_validate_environment_vars()
   bucket = environment_vars["bucket"]
   historical_recovery_path = environment_vars["historical_recovery_path"]
+  scan_date_start = environment_vars["scan_date_start"]
+  scan_date_end = environment_vars["scan_date_end"]
+  scan_date_from = datetime.strptime(scan_date_start, '%m-%d-%Y')
+  scan_date_to = datetime.strptime(scan_date_end, '%m-%d-%Y')
   fetch_max_s3_keys_per_s3_listing_call = environment_vars["fetch_max_s3_keys_per_s3_listing_call"]
   lambda_working_limit_seconds = environment_vars["lambda_working_limit_seconds"]
   action = json_object['action']
 
   if action == action_process_prefixes:
-    star_prefix = json_object['startPrefix']
-    end_prefix = json_object['endPrefix']
-    prefixes = create_prefixes(star_prefix, end_prefix)
+    prefixes = create_prefixes(scan_date_from, scan_date_to)
 
     logger.info('Started to process historical data with configuration: '
                 'bucket {} ; historical_recovery_path {} ; '
+                'scan_date_start {} ; scan_date_end {} ; '
                 'fetch_max_s3_keys_per_s3_listing_call {} ; prefixes count {} ; '
                 'lambda_working_limit_seconds {}'
-                .format(bucket, historical_recovery_path, fetch_max_s3_keys_per_s3_listing_call,
-                        len(prefixes), lambda_working_limit_seconds))
+                .format(bucket, historical_recovery_path, scan_date_start, scan_date_end,
+                        fetch_max_s3_keys_per_s3_listing_call, len(prefixes), lambda_working_limit_seconds))
 
     for prefix in prefixes:
-      prefix_path = historical_recovery_path + "/" + str(prefix)
+      prefix_path = historical_recovery_path + "/" + prefix
       do_async_lambda_call(action_process_prefix, 1, prefix_path, "", context.function_name, 0, 0, 0)
   elif action == action_process_prefix:
     start_after = json_object["lastVerifiedKey"]
@@ -157,7 +173,7 @@ def lambda_handler(event, context):
         total_keys_success_per_prefix = total_keys_success_per_prefix + keys_success_per_lambda
         total_keys_failed_per_prefix = total_keys_failed_per_prefix + keys_failed_per_lambda
         log_metrics(bucket, prefix, lambda_async_number, lambda_time_duration, total_time_flow_execution_seconds, start_after, last_verified_key,
-                  keys_success_per_lambda, keys_failed_per_lambda, total_keys_success_per_prefix, total_keys_failed_per_prefix)
+                    keys_success_per_lambda, keys_failed_per_lambda, total_keys_success_per_prefix, total_keys_failed_per_prefix)
         break
 
       logger.info('contents {}'.format(contents))
@@ -198,12 +214,12 @@ def sleep_test(seconds):
   logger.info("after sleep")
 
 def process_file(bucket, key):
-  # found1 = key.find("11111111.txt")
-  # found2 = key.find("333333333.txt")
-  # if found1 > 0 or found2 > 0:
+  found1 = key.find("11111111.txt")
+  found2 = key.find("333333333.txt")
+  if found1 > 0 or found2 > 0:
     s3.delete_object(Bucket=bucket, Key=key)
     logger.info('Deleted key {}'.format(key))
     return True
-  # else:
-  #   logger.info('Not deleted key {}'.format(key))
-  #return False;
+  else:
+    logger.info('Not deleted key {}'.format(key))
+  return False;

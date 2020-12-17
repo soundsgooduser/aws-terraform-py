@@ -18,6 +18,7 @@ resource "aws_lambda_function" "lambda_function" {
       S3_KEYS_LISTING_LIMIT_PER_CALL = "4"
       LAMBDA_EXECUTION_LIMIT_SECONDS = "5"
       HISTORICAL_RECOVERY_PATH_METADATA = "historical-recovery-path-metadata"
+      MAX_KEYS_PER_HISTORICAL_PATH_PREFIX = "3" # recommended value 10000 for prod env
     }
   }
 }

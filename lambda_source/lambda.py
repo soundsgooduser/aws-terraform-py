@@ -28,7 +28,8 @@ last_modified_rules = {
 
 def verify_not_processed_success_s3_keys(bucket, prefix, suffixes, process_after_key_name, s3_keys_listing_limit_per_call,
     last_modified_start_datetime, last_modified_end_datetime, datetime_lambda_start,
-    lambda_execution_limit_seconds, historical_recovery_path):
+    lambda_execution_limit_seconds, historical_recovery_path,
+    total_not_processed_success_keys_per_prefix, max_keys_per_historical_path_prefix):
   # Use the last_modified_rules dict to lookup which conditional logic to apply
   # based on which arguments were supplied
   last_modified_rule = last_modified_rules[bool(last_modified_start_datetime), bool(last_modified_end_datetime)]
@@ -72,7 +73,7 @@ def verify_not_processed_success_s3_keys(bucket, prefix, suffixes, process_after
       #sleep_test(4)
       total_verified_keys_per_lambda = total_verified_keys_per_lambda + 1
       file_key = content['Key']
-      logger.info('Verifying key {}'.format(file_key))
+      #logger.info('Verifying key {}'.format(file_key))
       last_verified_key = file_key
       last_modified_datetime = content['LastModified']
       if (file_key.endswith(suffixes) and
@@ -80,8 +81,11 @@ def verify_not_processed_success_s3_keys(bucket, prefix, suffixes, process_after
           verify_key_processed_success_exists_in_contents(file_key, contents) == False and
           verify_key_processed_success_exists_in_s3(bucket, file_key) == False
       ):
-        create_historical_recovery_key(content, bucket, historical_recovery_path)
         not_processed_success_keys = not_processed_success_keys + 1
+        total_keys = total_not_processed_success_keys_per_prefix + not_processed_success_keys
+        historical_path_prefix = create_historical_path_prefix(total_keys, max_keys_per_historical_path_prefix)
+        create_historical_recovery_key(content, bucket, historical_recovery_path, historical_path_prefix)
+
       current_datetime_lambda = datetime.now()
       lambda_exec_seconds = int((current_datetime_lambda - datetime_lambda_start).total_seconds())
       if(lambda_exec_seconds > lambda_execution_limit_seconds):
@@ -105,14 +109,14 @@ def verify_not_processed_success_s3_keys(bucket, prefix, suffixes, process_after
 def verify_key_processed_success_exists_in_contents(verified_key, contents):
   key_chunks = verified_key.split("/")
   transaction_id = "/" + key_chunks[len(key_chunks) - 2] + "."
-  logger.info("Verifying transaction id {}".format(transaction_id))
+  #logger.info("Verifying transaction id {}".format(transaction_id))
   ods_processed_success = ".ods.processed.success"
   for content in contents:
     existing_key = content['Key']
     ods_processed_success_exists = existing_key.find(ods_processed_success)
     transaction_id_exists = existing_key.find(transaction_id)
     if transaction_id_exists > 0 and ods_processed_success_exists > 0 :
-      logger.info("Verified in s3 response that transaction id {} processed success {}".format(transaction_id, existing_key))
+      #logger.info("Verified in s3 response that transaction id {} processed success {}".format(transaction_id, existing_key))
       return True
   return False
 
@@ -125,22 +129,19 @@ def verify_key_processed_success_exists_in_s3(bucket, key):
     #check if success marker file exists
     s3.get_object(Bucket=bucket, Key=processed_success_key)
     #exists, file processed
-    logger.info('Exists processed success key {} for file {} in bucket {} '
-                .format(processed_success_key, key, bucket))
+    #logger.info('Exists processed success key {} for file {} in bucket {} '
+    #            .format(processed_success_key, key, bucket))
     return True
   except ClientError:
     #does not exist, file not processed
-    logger.info('Does not exist processed success key {} for file {} in bucket {} '
-                .format(processed_success_key, key, bucket))
+    #logger.info('Does not exist processed success key {} for file {} in bucket {} '
+    #            .format(processed_success_key, key, bucket))
     return False
 
-def create_historical_recovery_key(content, bucket, historical_recovery_path):
+def create_historical_recovery_key(content, bucket, historical_recovery_path, historical_path_prefix):
   response_file_key = content["Key"]
-  last_modified_datetime = content['LastModified']
-  last_modified_date = last_modified_datetime.strftime("%m-%d-%Y")
   file_name = response_file_key.rsplit('/', 1)[-2] #transactionID
-  historical_recovery_key = historical_recovery_path + '/' + last_modified_date + '/' + \
-                            str(last_modified_datetime.hour) + '/' + file_name + '.txt'
+  historical_recovery_key = historical_recovery_path + '/' + str(historical_path_prefix) + '/' + file_name + '.txt'
   logger.info('Generate historical recovery file {} in bucket {}'.format(historical_recovery_key, bucket))
   s3.put_object(Body=response_file_key.encode(), Bucket=bucket, Key=historical_recovery_key)
 
@@ -148,18 +149,32 @@ def read_and_validate_environment_vars():
   bucket_name = os.environ["BUCKET_NAME"]
   if not bucket_name:
     raise Exception("bucket_name is not defined")
+
   historical_recovery_path = os.environ["HISTORICAL_RECOVERY_PATH"]
   if not historical_recovery_path:
     raise Exception("historical_recovery_path is not defined")
+
   prefixes = os.environ["PREFIXES"]
   if not prefixes:
     raise Exception("prefixes are not defined")
+
   suffixes = os.environ["SUFFIXES"]
   if not suffixes:
     raise Exception("suffixes are not defined")
+
   s3_keys_listing_limit_per_call = os.environ["S3_KEYS_LISTING_LIMIT_PER_CALL"]
   if not s3_keys_listing_limit_per_call:
     raise Exception("s3_keys_listing_limit_per_call is not defined")
+
+  s3_keys_listing_limit_per_call = os.environ["S3_KEYS_LISTING_LIMIT_PER_CALL"]
+  if not s3_keys_listing_limit_per_call:
+    raise Exception("s3_keys_listing_limit_per_call is not defined")
+
+  max_keys_per_historical_path_prefix = os.environ["MAX_KEYS_PER_HISTORICAL_PATH_PREFIX"]
+  if not max_keys_per_historical_path_prefix:
+    raise Exception("max_keys_per_historical_path_prefix is not defined")
+  if int(max_keys_per_historical_path_prefix) < 1:
+    raise Exception("max_keys_per_historical_path_prefix must be more than zero")
 
   last_modified_start = os.environ["LAST_MODIFIED_START"]
   if not last_modified_start:
@@ -189,7 +204,8 @@ def read_and_validate_environment_vars():
     "last_modified_end_datetime": last_modified_end_datetime,
     "s3_keys_listing_limit_per_call": int(s3_keys_listing_limit_per_call),
     "lambda_execution_limit_seconds": int(lambda_execution_limit_seconds),
-    "historical_recovery_path_metadata": historical_recovery_path_metadata
+    "historical_recovery_path_metadata": historical_recovery_path_metadata,
+    "max_keys_per_historical_path_prefix": int(max_keys_per_historical_path_prefix)
   }
   return environment_vars
 
@@ -221,6 +237,17 @@ def verify_stop_flow_execution_flag(bucket, historical_recovery_path_metadata, p
   except ClientError:
     return False
 
+def create_historical_path_prefix(total_not_processed_success_keys_per_prefix, max_keys_per_historical_path_prefix):
+  logger.info("total_not_processed_success_keys_per_prefix {} and max_keys_per_historical_path_prefix {}".format(total_not_processed_success_keys_per_prefix, max_keys_per_historical_path_prefix))
+  historical_path_prefix = 1
+  if total_not_processed_success_keys_per_prefix > max_keys_per_historical_path_prefix:
+    value = total_not_processed_success_keys_per_prefix % max_keys_per_historical_path_prefix
+    if value == 0:
+      historical_path_prefix = int(total_not_processed_success_keys_per_prefix / max_keys_per_historical_path_prefix)
+    else:
+      historical_path_prefix = int(total_not_processed_success_keys_per_prefix / max_keys_per_historical_path_prefix) + 1
+  return historical_path_prefix
+
 def lambda_handler(event, context):
   datetime_lambda_start = datetime.now()
 
@@ -241,6 +268,7 @@ def lambda_handler(event, context):
   s3_keys_listing_limit_per_call = environment_vars["s3_keys_listing_limit_per_call"]
   lambda_execution_limit_seconds = environment_vars["lambda_execution_limit_seconds"]
   historical_recovery_path_metadata = environment_vars["historical_recovery_path_metadata"]
+  max_keys_per_historical_path_prefix = environment_vars["max_keys_per_historical_path_prefix"]
   action = json_object['action']
 
   if action == action_process_prefixes:
@@ -248,10 +276,12 @@ def lambda_handler(event, context):
                 'bucket {} ; historical_recovery_path {} ; '
                 'prefixes {} ; suffixes {} ; '
                 'last_modified_start_datetime {} ; last_modified_end_datetime {} ; '
-                's3_keys_listing_limit_per_call {}'
+                's3_keys_listing_limit_per_call {} ; lambda_execution_limit_seconds {} ; '
+                'historical_recovery_path_metadata {} ; max_keys_per_historical_path_prefix {}'
                 .format(bucket, historical_recovery_path, prefixes, suffixes,
                         last_modified_start_datetime, last_modified_end_datetime,
-                        s3_keys_listing_limit_per_call))
+                        s3_keys_listing_limit_per_call, lambda_execution_limit_seconds,
+                        historical_recovery_path_metadata, max_keys_per_historical_path_prefix))
 
     for prefix in prefixes:
       payload = json.dumps({"action": action_process_prefix,
@@ -284,7 +314,8 @@ def lambda_handler(event, context):
     #sleep_test(10)
     result = verify_not_processed_success_s3_keys(bucket, prefix, suffixes, process_after_key_name, s3_keys_listing_limit_per_call,
                        last_modified_start_datetime, last_modified_end_datetime, datetime_lambda_start,
-                       lambda_execution_limit_seconds, historical_recovery_path)
+                       lambda_execution_limit_seconds, historical_recovery_path,
+                       total_not_processed_success_keys_per_prefix, max_keys_per_historical_path_prefix)
 
     len_not_processed_keys = result["NotProcessedSuccessKeys"]
     total_verified_keys_per_lambda = result["TotalVerifiedKeysPerLambda"]

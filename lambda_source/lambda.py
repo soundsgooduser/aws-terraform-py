@@ -316,11 +316,13 @@ def lambda_handler(event, context):
                             },
                             "totalFoundNotProcessedKeysPerDays": total_found_not_processed_keys_per_days
                             })
-      lambda_client.invoke(
+      response = lambda_client.invoke(
           FunctionName=context.function_name,
           InvocationType='Event',
           Payload=payload
       )
+      logger.info(response)
+      logger.info("Payload >>>{}<<<".format(response['Payload'].read()))
   elif action == action_process_prefix:
     lambda_async_number = json_object['lambdaAsyncNumber']
     prefix_metadata = json_object['metadata']

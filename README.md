@@ -48,3 +48,14 @@ timeS3ListingPerLambda{
 	"2 listing call": ""
 }
 totalTimeS3ListingPerLambda
+
+
+==================
+
+
+{
+  "action": "process_prefixes",
+  "prefixDate": "12-17-2020",
+  "startPrefixNumber": "1",
+  "endPrefixNumber": "4"
+}

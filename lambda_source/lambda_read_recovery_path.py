@@ -71,11 +71,11 @@ def verify_lambda_exec_time_exceeded(datetime_lambda_start, lambda_working_limit
     return False
   return True
 
-def create_prefixes(star_prefix, end_prefix):
-  star_prefix = int(star_prefix)
+def create_prefixes(start_prefix, end_prefix):
+  start_prefix = int(start_prefix)
   end_prefix = int(end_prefix)
   prefixes = []
-  for prefix in range(star_prefix, end_prefix + 1):
+  for prefix in range(start_prefix, end_prefix + 1):
       prefixes.append(prefix)
   logger.info('Created {} prefixes {}'.format(len(prefixes), prefixes))
   return tuple(prefixes)
@@ -115,19 +115,20 @@ def lambda_handler(event, context):
   action = json_object['action']
 
   if action == action_process_prefixes:
-    star_prefix = json_object['startPrefix']
-    end_prefix = json_object['endPrefix']
-    prefixes = create_prefixes(star_prefix, end_prefix)
+    prefix_date = json_object['prefixDate']
+    start_prefix = json_object['startPrefixNumber']
+    end_prefix = json_object['endPrefixNumber']
+    prefixes = create_prefixes(start_prefix, end_prefix)
 
     logger.info('Started to process historical data with configuration: '
                 'bucket {} ; historical_recovery_path {} ; '
                 'fetch_max_s3_keys_per_s3_listing_call {} ; prefixes count {} ; '
-                'lambda_working_limit_seconds {}'
+                'prefix_date {} ; lambda_working_limit_seconds {}'
                 .format(bucket, historical_recovery_path, fetch_max_s3_keys_per_s3_listing_call,
-                        len(prefixes), lambda_working_limit_seconds))
+                        len(prefixes), prefix_date, lambda_working_limit_seconds))
 
     for prefix in prefixes:
-      prefix_path = historical_recovery_path + "/" + str(prefix)
+      prefix_path = historical_recovery_path + "/" + prefix_date + "/" + str(prefix)
       do_async_lambda_call(action_process_prefix, 1, prefix_path, "", context.function_name, 0, 0, 0)
   elif action == action_process_prefix:
     start_after = json_object["lastVerifiedKey"]

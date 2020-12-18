@@ -115,10 +115,28 @@ def lambda_handler(event, context):
   action = json_object['action']
 
   if action == action_process_prefixes:
-    prefix_date = json_object['prefixDate']
-    start_prefix = json_object['startPrefixNumber']
-    end_prefix = json_object['endPrefixNumber']
-    prefixes = create_prefixes(start_prefix, end_prefix)
+    prefix_date = ""
+    start_prefix = ""
+    end_prefix = ""
+    prefixes = []
+
+    try:
+      prefix_date = json_object['prefixDate']
+    except KeyError:
+      msg = "prefixDate must be sent in request payload"
+      logger.error(msg)
+      return msg
+
+    try:
+      start_prefix = json_object['startPrefixNumber']
+      end_prefix = json_object['endPrefixNumber']
+    except KeyError:
+      logger.info("start_prefix and end_prefix not defined in request")
+
+    if start_prefix and end_prefix:
+      prefixes = create_prefixes(start_prefix, end_prefix)
+    else:
+      prefixes.append(prefix_date)
 
     logger.info('Started to process historical data with configuration: '
                 'bucket {} ; historical_recovery_path {} ; '
@@ -128,7 +146,10 @@ def lambda_handler(event, context):
                         len(prefixes), prefix_date, lambda_working_limit_seconds))
 
     for prefix in prefixes:
-      prefix_path = historical_recovery_path + "/" + prefix_date + "/" + str(prefix)
+      if start_prefix and end_prefix:
+        prefix_path = historical_recovery_path + "/" + prefix_date + "/" + str(prefix)
+      else:
+        prefix_path = historical_recovery_path + "/" + prefix_date
       do_async_lambda_call(action_process_prefix, 1, prefix_path, "", context.function_name, 0, 0, 0)
   elif action == action_process_prefix:
     start_after = json_object["lastVerifiedKey"]

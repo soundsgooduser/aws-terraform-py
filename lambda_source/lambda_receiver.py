@@ -30,21 +30,23 @@ def read_and_validate_environment_vars():
   historical_recovery_path = os.environ["HISTORICAL_RECOVERY_PATH"]
   if not historical_recovery_path:
     raise Exception("historical_recovery_path is not defined")
+
   suffixes = os.environ["SUFFIXES"]
   if not suffixes:
     raise Exception("suffixes are not defined")
-  save_result_to_s3 = os.environ["SAVE_RESULT_TO_S3"]
+
   fetch_max_s3_keys_per_s3_listing_call = os.environ["FETCH_MAX_S3_KEYS_PER_S3_LISTING_CALL"]
   if not fetch_max_s3_keys_per_s3_listing_call:
     raise Exception("fetch_max_s3_keys_per_s3_listing_call is not defined")
-  if not save_result_to_s3:
-    raise Exception("save_result_to_s3 are not defined")
+
   last_modified_start = os.environ["LAST_MODIFIED_START"]
   if not last_modified_start:
     raise Exception("last_modified_start is not defined")
+
   last_modified_end = os.environ["LAST_MODIFIED_END"]
   if not last_modified_end:
     raise Exception("last_modified_end is not defined")
+
   last_modified_start_datetime = datetime.strptime(last_modified_start, '%m/%d/%Y %H:%M:%S%z')
   last_modified_end_datetime = datetime.strptime(last_modified_end, '%m/%d/%Y %H:%M:%S%z')
 
@@ -52,7 +54,9 @@ def read_and_validate_environment_vars():
     raise ValueError("last_modified_end_datetime {} must be greater than last_modified_start_datetime {}"
                      .format(last_modified_end_datetime, last_modified_start_datetime))
 
-  historical_recovery_path_metadata = os.environ["HISTORICAL_RECOVERY_PATH_METADATA"]
+  lambda_working_limit_seconds = os.environ["LAMBDA_WORKING_LIMIT_SECONDS"]
+  if not lambda_working_limit_seconds:
+    raise Exception("lambda_working_limit_seconds is not defined")
 
   environment_vars = {
     "historical_recovery_path": historical_recovery_path,
@@ -60,13 +64,21 @@ def read_and_validate_environment_vars():
     "fetch_max_s3_keys_per_s3_listing_call": int(fetch_max_s3_keys_per_s3_listing_call),
     "last_modified_start_datetime": last_modified_start_datetime,
     "last_modified_end_datetime": last_modified_end_datetime,
-    "save_result_to_s3": save_result_to_s3,
-    "historical_recovery_path_metadata": historical_recovery_path_metadata
+    "lambda_working_limit_seconds": int(lambda_working_limit_seconds)
   }
   return environment_vars
 
+def lambda_exec_time_limit_not_exceeded(datetime_lambda_start, lambda_working_limit_seconds):
+  current_datetime_lambda = datetime.now()
+  lambda_exec_seconds = int((current_datetime_lambda - datetime_lambda_start).total_seconds())
+  if(lambda_exec_seconds < lambda_working_limit_seconds):
+    return True
+  return False
+
 def verify_not_processed_success_s3_keys(bucket, prefix, suffixes, verify_after_key, verify_to_key,
-    last_modified_start_datetime, last_modified_end_datetime, fetch_max_s3_keys_per_s3_listing_call, historical_recovery_path):
+    last_modified_start_datetime, last_modified_end_datetime, fetch_max_s3_keys_per_s3_listing_call,
+    historical_recovery_path, datetime_lambda_start, lambda_working_limit_seconds):
+
   last_modified_rule = last_modified_rules[bool(last_modified_start_datetime), bool(last_modified_end_datetime)]
   kwargs = {'Bucket': bucket}
   kwargs['Prefix'] = prefix
@@ -79,6 +91,7 @@ def verify_not_processed_success_s3_keys(bucket, prefix, suffixes, verify_after_
 
   total_verified_keys = 0
   total_created_not_processed_keys = 0
+  proceed_processing = False
 
   while True:
     last_verified_key = ""
@@ -107,12 +120,20 @@ def verify_not_processed_success_s3_keys(bucket, prefix, suffixes, verify_after_
         logger.info("Stop verification. Reached last key in verification range keys."
                     "Count verified keys {}. Count created not processed keys {}.".format(total_verified_keys, total_created_not_processed_keys))
         break
+      if lambda_exec_time_limit_not_exceeded(datetime_lambda_start, lambda_working_limit_seconds) == False:
+        stop_verification = True
+        proceed_processing = True
+        logger.info("Stop verification. Lambda execution timeout limit exceeded."
+                    "Count verified keys {}. Count created not processed keys {}.".format(total_verified_keys, total_created_not_processed_keys))
+        break
     if stop_verification:
       break
     kwargs['StartAfter'] = last_verified_key
   result = {
     "total_verified_keys": total_verified_keys,
-    "total_created_not_processed_keys": total_created_not_processed_keys
+    "total_created_not_processed_keys": total_created_not_processed_keys,
+    "proceed_processing": proceed_processing,
+    "last_verified_key": last_verified_key
   }
   return result
 
@@ -176,13 +197,27 @@ def log_metrics(bucket, prefix, result, lambda_sender_id, datetime_lambda_start)
     "prefix": prefix,
     "id": str(lambda_sender_id) + "-" + prefix,
     "lambdaStartTime": datetime_lambda_start.strftime("%m-%d-%Y %H:%M:%S"),
-    "lambdaEndTime": datetime_lambda_start.strftime("%m-%d-%Y %H:%M:%S"),
+    "lambdaEndTime": datetime.now().strftime("%m-%d-%Y %H:%M:%S"),
     "lambdaDuration": calculate_duration_and_format(datetime_lambda_start),
     "totalVerifiedKeys": result["total_verified_keys"],
     "totalCreatedNotProcessedSuccessKeys": result["total_created_not_processed_keys"]
     }
   )
-  logger.info('SQS Receiver finished message processing {}'.format(metrics))
+  logger.info('Receiver finished message processing {}'.format(metrics))
+
+def process_prefix_async_call(lambda_sender_id, bucket, prefix, verify_after_key, verify_to_key, function_name):
+  payload = json.dumps({"isAsyncCall": True,
+                        "lambdaSenderId": lambda_sender_id + "-" + prefix,
+                        "bucket": bucket,
+                        "prefix": prefix,
+                        "verifyAfterKey": verify_after_key,
+                        "verifyToKey": verify_to_key
+                        })
+  lambda_client.invoke(
+      FunctionName=function_name,
+      InvocationType='Event',
+      Payload=payload
+  )
 
 def lambda_handler(event, context):
   datetime_lambda_start = datetime.now()
@@ -196,19 +231,47 @@ def lambda_handler(event, context):
   fetch_max_s3_keys_per_s3_listing_call = environment_vars["fetch_max_s3_keys_per_s3_listing_call"]
   last_modified_start_datetime = environment_vars["last_modified_start_datetime"]
   last_modified_end_datetime = environment_vars["last_modified_end_datetime"]
-  save_result_to_s3 = environment_vars["save_result_to_s3"]
-  historical_recovery_path_metadata = environment_vars["historical_recovery_path_metadata"]
+  lambda_working_limit_seconds = environment_vars["lambda_working_limit_seconds"]
 
-  for record in event['Records']:
-    body = json.loads(record["body"])
-    bucket = body["bucket"]
-    prefix = body["prefix"]
-    lambda_sender_id = body["id"]
-    verify_after_key = body["verifyAfterKey"]
-    verify_to_key = body["verifyToKey"]
+  bucket = ""
+  prefix = ""
+  lambda_sender_id = ""
+  verify_after_key = ""
+  verify_to_key = ""
 
-    result = verify_not_processed_success_s3_keys(bucket, prefix, suffixes, verify_after_key, verify_to_key, last_modified_start_datetime,
-                                                  last_modified_end_datetime, fetch_max_s3_keys_per_s3_listing_call, historical_recovery_path)
-    log_metrics(bucket, prefix, result, lambda_sender_id, datetime_lambda_start)
+  is_async_call = False
+  try:
+    is_async_call = event['isAsyncCall']
+  except:
+    logger.info("is_async_call {}".format(is_async_call))
+    is_async_call = False
+
+  if is_async_call:
+    logger.info("received event from async call")
+    bucket = event["bucket"]
+    prefix = event["prefix"]
+    lambda_sender_id = event["lambdaSenderId"]
+    verify_after_key = event["verifyAfterKey"]
+    verify_to_key = event["verifyToKey"]
+  else:
+    logger.info("received event from SQS")
+    for record in event['Records']:
+      body = json.loads(record["body"])
+      bucket = body["bucket"]
+      prefix = body["prefix"]
+      lambda_sender_id = body["id"]
+      verify_after_key = body["verifyAfterKey"]
+      verify_to_key = body["verifyToKey"]
+      break
+
+  result = verify_not_processed_success_s3_keys(bucket, prefix, suffixes, verify_after_key, verify_to_key, last_modified_start_datetime,
+                                                last_modified_end_datetime, fetch_max_s3_keys_per_s3_listing_call, historical_recovery_path,
+                                                datetime_lambda_start, lambda_working_limit_seconds)
+  log_metrics(bucket, prefix, result, lambda_sender_id, datetime_lambda_start)
+
+  proceed_processing = result["proceed_processing"]
+  last_verified_key =  result["last_verified_key"]
+  if proceed_processing:
+    process_prefix_async_call(lambda_sender_id, bucket, prefix, last_verified_key, verify_to_key, context.function_name)
 
   return "success"

@@ -5,6 +5,8 @@ import hashlib
 import json
 
 from botocore.exceptions import ClientError
+from concurrent.futures import ThreadPoolExecutor
+from time import sleep
 from datetime import timedelta, datetime
 
 logger = logging.getLogger()
@@ -18,9 +20,21 @@ def process_key(bucket, key_content):
   verify_key_processed_success_exists_in_s3(bucket, key)
   return "success"
 
-def process_keys(bucket, keys_contents):
+def process_keys(bucket, keys_contents, executor):
+  futures = []
   for key_content in keys_contents:
-    process_key(bucket, key_content)
+    future = executor.submit(process_key, bucket, key_content)
+    futures.append(future)
+
+  all_threads_done = False
+  while all_threads_done == False:
+    for future in futures:
+      if future.done() == False:
+        break
+      if future == futures[len(futures) - 1]:
+        all_threads_done = True
+  print("futures size: " + str(len(futures)))
+  print("all_threads_done >>> : " + str(all_threads_done))
 
 def read_s3_keys(bucket, prefix, s3_keys_listing_limit_per_call, start_after_key):
   kwargs = {'Bucket': bucket}
@@ -52,13 +66,15 @@ def lambda_handler(event, context):
   logger.info("Lambda received event {} ".format(json_str))
   json_object = json.loads(json_str)
 
+  executor = ThreadPoolExecutor(max_workers=2000)
+
   keys_contents = read_s3_keys("all-transactions", "us-east1", 1000, "")
 
-  process_keys("all-transactions", keys_contents)
+  process_keys("all-transactions", keys_contents, executor)
 
   current_datetime_lambda = datetime.now()
   lambda_exec_seconds = int((current_datetime_lambda - datetime_lambda_start).total_seconds())
 
-  print(">>>>> " +str(lambda_exec_seconds))
+  print(lambda_exec_seconds)
 
   return "success"

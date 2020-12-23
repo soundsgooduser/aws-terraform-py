@@ -1,37 +1,37 @@
+from concurrent.futures import ThreadPoolExecutor
+from time import sleep
 from datetime import timedelta, datetime
 
-def create_dates(start_datetime, end_datetime):
-  print("enter")
-  start_date = start_datetime.strftime('%m-%d-%Y')
-  result = {start_date: 2}
-  temp_date_time = start_datetime
-  if start_datetime == end_datetime:
-    return result
-  while True:
-    next_date_time = temp_date_time + timedelta(1)
-    temp_date_time = next_date_time
-    next_date = next_date_time.strftime('%m-%d-%Y')
-    result[next_date] = 0
-    if next_date_time == end_datetime:
-      break
-  return result
+def process_key(key):
+  sleep(1)
+  print("process key: " + key)
+  return "processed key: " + key
 
-def update_and_get_total_found_not_processed_keys_per_day(key_last_modified_datetime, dates):
-  key_last_modified_date = key_last_modified_datetime.strftime('%m-%d-%Y')
-  total_not_processed_keys = dates.get(key_last_modified_date)
-  total_not_processed_keys = total_not_processed_keys + 1
-  dates[key_last_modified_date] = total_not_processed_keys
-  return total_not_processed_keys
+def process_keys(keys):
+  futures = []
+  for key in keys:
+    future = executor.submit(process_key, (key))
+    futures.append(future)
+
+  all_threads_done = False
+  while all_threads_done == False:
+    for future in futures:
+      if future.done() == False:
+        break
+      if future == futures[len(futures) - 1]:
+        all_threads_done = True
+  print("all_threads_done: " + str(all_threads_done))
+
+datetime_lambda_start = datetime.now()
+
+executor = ThreadPoolExecutor(1000)
+keys = ["1", "2", "3","4", "5", "6","7", "8", "9","10", "11", "12","13", "14", "15","16", "17", "18","19", "20"]
+
+process_keys(keys)
+
+current_datetime_lambda = datetime.now()
+lambda_exec_seconds = int((current_datetime_lambda - datetime_lambda_start).total_seconds())
+
+print(lambda_exec_seconds)
 
 
-
-print("enter 1")
-scan_date_from = datetime.strptime('11-07-2020', '%m-%d-%Y')
-scan_date_to = datetime.strptime('11-14-2020', '%m-%d-%Y')
-key_last_modified_datetime = datetime.strptime('11-09-2020', '%m-%d-%Y')
-print(scan_date_from)
-dates = create_dates(scan_date_from, scan_date_to)
-print(dates.get('11-07-2020'))
-
-total_not_processed_keys = update_and_get_total_found_not_processed_keys_per_day(key_last_modified_datetime, dates)
-print(dates)

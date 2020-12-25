@@ -1,0 +1,62 @@
+1 case:
+
+date range (one day): 2020-11-22
+s3 files: 13
+FETCH_MAX_S3_KEYS_PER_S3_LISTING_CALL = "4"
+LAMBDA_WORKING_LIMIT_SECONDS = "40"
+no async call
+
+2 case:
+
+date range (one day): 2020-11-22
+s3 files: 13
+FETCH_MAX_S3_KEYS_PER_S3_LISTING_CALL = "4"
+LAMBDA_WORKING_LIMIT_SECONDS = "4"
+add sleep time for testing in code
+5 async calls expected
+
+
+3 case:
+
+date range (one day): 2020-11-22
+s3 files: 13
+FETCH_MAX_S3_KEYS_PER_S3_LISTING_CALL = "4"
+LAMBDA_WORKING_LIMIT_SECONDS = "4"
+add sleep time for testing in code if iteration == 2
+3 async calls expected
+
+4 case:
+
+date range (one day): 2020-11-22 - 2020-11-24
+s3 files: 13 per each day = 39 in total
+FETCH_MAX_S3_KEYS_PER_S3_LISTING_CALL = "4"
+LAMBDA_WORKING_LIMIT_SECONDS = "4"
+add sleep time for testing in code if iteration == 2
+9 async calls expected
+
+5 case:
+
+date range (one day): 2020-11-21 - 2020-11-26 (and only 22 and 24 exist)
+s3 files: 13 per each day = 26 in total
+FETCH_MAX_S3_KEYS_PER_S3_LISTING_CALL = "4"
+LAMBDA_WORKING_LIMIT_SECONDS = "4"
+add sleep time for testing in code if iteration == 2
+10 async calls expected
+
+
+
+
+
+
+what to check:
+validate request
+payload sent to SQS
+async call after time passed
+process one day
+process range of dates with data in all existing dates
+process range where some dates dont not exist
+stop flow execution
+check if proceed processing works after stop flag
+verify metrics logged okey with correct date time and millis
+verify to send keys without .json
+

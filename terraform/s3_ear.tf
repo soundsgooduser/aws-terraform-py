@@ -77,6 +77,28 @@ resource "aws_s3_bucket_object" "object_transaction_1322" {
   force_destroy = true
 }
 
+
+resource "aws_s3_bucket_object" "object_transaction_1322_pr_suc-1" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "rules/2020-11-22/cust_5/ref_5/tr_5.e39b3cf977b7b5fa90760ee2b9eb7dcc.ods.processed.success.2020-09-09T00:00:00.900Z"
+  source = "../files/processed.success"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_object" "object_transaction_1322_pr_suc_2" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "rules/2020-11-22/cust_6/ref_6/tr_6.e39b3cf977b7b5fa90760ee2b9eb7dcc.ods.processed.success"
+  source = "../files/processed.success"
+  force_destroy = true
+}
+
+resource "aws_s3_bucket_object" "object_transaction_1322_pr_suc_3" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "rules/2020-11-22/cust_8/ref_8/tr_8.e39b3cf977b7b5fa90760ee2b9eb7dcc.ods.processed.success.2020-09-09T00:00:00.900Z"
+  source = "../files/processed.success"
+  force_destroy = true
+}
+
 ####
 
 //resource "aws_s3_bucket_object" "object_transaction_123" {

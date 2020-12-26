@@ -11,7 +11,7 @@ resource "aws_lambda_function" "lambda_function" {
     variables = {
       BUCKET = "all-transactions"
       HISTORICAL_RECOVERY_PATH_METADATA = "historical-recovery-path-metadata"
-      FETCH_MAX_S3_KEYS_PER_S3_LISTING_CALL = "4"
+      FETCH_MAX_S3_KEYS_PER_S3_LISTING_CALL = "100"
       LAMBDA_WORKING_LIMIT_SECONDS = "40"
       SQS_KEYS_QUEUE_URL = "${aws_sqs_queue.s3-keys-queue.id}"
     }
@@ -31,8 +31,8 @@ resource "aws_lambda_function" "lambda_receiver" {
   environment {
     variables = {
       HISTORICAL_RECOVERY_PATH = "historical-recovery-path"
-      FETCH_MAX_S3_KEYS_PER_S3_LISTING_CALL = "4"
-      LAMBDA_WORKING_LIMIT_SECONDS = "2"
+      FETCH_MAX_S3_KEYS_PER_S3_LISTING_CALL = "100"
+      LAMBDA_WORKING_LIMIT_SECONDS = "40"
     }
   }
 }

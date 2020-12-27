@@ -3,316 +3,265 @@ resource "aws_s3_bucket" "s3_bucket_all_transactions" {
   force_destroy = true
 }
 
-# 1
-//resource "aws_s3_bucket_object" "object_transaction_1" {
+resource "aws_s3_bucket_object" "object_transaction_122" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "rules/2020-11-22/cust_1/ref_1/tr_1.json"
+  source = "../files/transaction1.json"
+  force_destroy = true
+}
+resource "aws_s3_bucket_object" "object_transaction_222" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "rules/2020-11-22/cust_2/ref_2/tr_2"
+  source = "../files/transaction1.json"
+  force_destroy = true
+}
+resource "aws_s3_bucket_object" "object_transaction_322" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "rules/2020-11-22/cust_3/ref_3/tr_3.json"
+  source = "../files/transaction1.json"
+  force_destroy = true
+}
+resource "aws_s3_bucket_object" "object_transaction_422" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "rules/2020-11-22/cust_4/ref_4/tr_4.json"
+  source = "../files/transaction1.json"
+  force_destroy = true
+}
+resource "aws_s3_bucket_object" "object_transaction_522" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "rules/2020-11-22/cust_5/ref_5/tr_5.json"
+  source = "../files/transaction1.json"
+  force_destroy = true
+}
+resource "aws_s3_bucket_object" "object_transaction_622" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "rules/2020-11-22/cust_6/ref_6/tr_6.json"
+  source = "../files/transaction1.json"
+  force_destroy = true
+}
+resource "aws_s3_bucket_object" "object_transaction_722" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "rules/2020-11-22/cust_7/ref_7/tr_7.json"
+  source = "../files/transaction1.json"
+  force_destroy = true
+}
+resource "aws_s3_bucket_object" "object_transaction_822" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "rules/2020-11-22/cust_8/ref_8/tr_8.json"
+  source = "../files/transaction1.json"
+  force_destroy = true
+}
+resource "aws_s3_bucket_object" "object_transaction_922" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "rules/2020-11-22/cust_9/ref_9/tr_9"
+  source = "../files/transaction1.json"
+  force_destroy = true
+}
+resource "aws_s3_bucket_object" "object_transaction_1022" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "rules/2020-11-22/cust_10/ref_10/tr_10"
+  source = "../files/transaction1.json"
+  force_destroy = true
+}
+resource "aws_s3_bucket_object" "object_transaction_1122" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "rules/2020-11-22/cust_11/ref_11/tr_11"
+  source = "../files/transaction1.json"
+  force_destroy = true
+}
+resource "aws_s3_bucket_object" "object_transaction_1222" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "rules/2020-11-22/cust_12/ref_12/tr_12"
+  source = "../files/transaction1.json"
+  force_destroy = true
+}
+resource "aws_s3_bucket_object" "object_transaction_1322" {
+  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+  key = "rules/2020-11-22/cust_13/ref_13/tr_13"
+  source = "../files/transaction1.json"
+  force_destroy = true
+}
+
+
+//resource "aws_s3_bucket_object" "object_transaction_1322_pr_suc-1" {
 //  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-//  key = "us-east1/company/demo1/1111/222ef123/response/device/333d588/Response.json"
+//  key = "rules/2020-11-22/cust_5/ref_5/tr_5.e39b3cf977b7b5fa90760ee2b9eb7dcc.ods.processed.success.2020-09-09T00:00:00.900Z"
+//  source = "../files/processed.success"
+//  force_destroy = true
+//}
+//
+//resource "aws_s3_bucket_object" "object_transaction_1322_pr_suc_2" {
+//  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+//  key = "rules/2020-11-22/cust_6/ref_6/tr_6.e39b3cf977b7b5fa90760ee2b9eb7dcc.ods.processed.success"
+//  source = "../files/processed.success"
+//  force_destroy = true
+//}
+//
+//resource "aws_s3_bucket_object" "object_transaction_1322_pr_suc_3" {
+//  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+//  key = "rules/2020-11-22/cust_8/ref_8/tr_8.e39b3cf977b7b5fa90760ee2b9eb7dcc.ods.processed.success.2020-09-09T00:00:00.900Z"
+//  source = "../files/processed.success"
+//  force_destroy = true
+//}
+
+####
+
+//resource "aws_s3_bucket_object" "object_transaction_123" {
+//  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+//  key = "rules/2020-11-23/cust_1/ref_1/tr_1.json"
 //  source = "../files/transaction1.json"
 //  force_destroy = true
 //}
-//
-////resource "aws_s3_bucket_object" "object_transaction_1_processed_success" {
-////  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-////  key = "us-east1/company/demo1/1111/222ef123/response/device/333d588.e39b3cf977b7b5fa90760ee2b9eb7dcc.ods.processed.success"
-////  source = "../files/processed.success"
-////  force_destroy = true
-////}
-//
-////resource "aws_s3_bucket_object" "object_transaction_1_processed_success_timestamp" {
-////  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-////  key = "us-east1/company/demo1/1111/222ef123/response/device/333d588.e39b3cf977b7b5fa90760ee2b9eb7dcc.ods.processed.success.2020-01-01T00:00:00.100Z"
-////  source = "../files/processed.success"
-////  force_destroy = true
-////}
-//
-//
-//# 2
-//resource "aws_s3_bucket_object" "object_transaction_2" {
+//resource "aws_s3_bucket_object" "object_transaction_223" {
 //  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-//  key = "us-east1/company/demo1/1111/444ef123/response/device/555d588/Response.json"
-//  source = "../files/transaction2.json"
-//  force_destroy = true
-//}
-//
-////resource "aws_s3_bucket_object" "object_transaction_2_processed_success" {
-////  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-////  key = "us-east1/company/demo1/1111/444ef123/response/device/555d588.1f6ba0009ade5ae06bf1b823ca82f5b9.ods.processed.success"
-////  source = "../files/processed.success"
-////  force_destroy = true
-////}
-//
-////resource "aws_s3_bucket_object" "object_transaction_2_processed_success_timestamp" {
-////  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-////  key = "us-east1/company/demo1/1111/444ef123/response/device/555d588.1f6ba0009ade5ae06bf1b823ca82f5b9.ods.processed.success.2020-02-02T00:00:00.200Z"
-////  source = "../files/processed.success"
-////  force_destroy = true
-////}
-//
-//
-//# 3
-//resource "aws_s3_bucket_object" "object_transaction_11" {
-//  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-//  key = "us-east1/company/demo1/11112/2/response/device/2/Response.json"
+//  key = "rules/2020-11-23/cust_2/ref_2/tr_2.json"
 //  source = "../files/transaction1.json"
 //  force_destroy = true
 //}
-//
-////resource "aws_s3_bucket_object" "object_transaction_11_processed_success" {
-////  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-////  key = "us-east1/company/demo1/11112/2/response/device/2.e39b3cf977b7b5fa90760ee2b9eb7dcc.ods.processed.success"
-////  source = "../files/processed.success"
-////  force_destroy = true
-////}
-//
-////resource "aws_s3_bucket_object" "object_transaction_11_processed_success_timestamp" {
-////  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-////  key = "us-east1/company/demo1/11112/2/response/device/2.e39b3cf977b7b5fa90760ee2b9eb7dcc.ods.processed.success.2020-03-03T00:00:00.300Z"
-////  source = "../files/processed.success"
-////  force_destroy = true
-////}
-//
-//
-//# 4
-//resource "aws_s3_bucket_object" "object_transaction_22" {
+//resource "aws_s3_bucket_object" "object_transaction_323" {
 //  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-//  key = "us-east1/company/demo1/11112/3/response/device/3/Response.json"
-//  source = "../files/transaction2.json"
+//  key = "rules/2020-11-23/cust_3/ref_3/tr_3.json"
+//  source = "../files/transaction1.json"
 //  force_destroy = true
 //}
-//
-////resource "aws_s3_bucket_object" "object_transaction_22_processed_success" {
-////  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-////  key = "us-east1/company/demo1/11112/3/response/device/3.1f6ba0009ade5ae06bf1b823ca82f5b9.ods.processed.success"
-////  source = "../files/processed.success"
-////  force_destroy = true
-////}
-//
-////resource "aws_s3_bucket_object" "object_transaction_22_processed_success_timestamp" {
-////  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-////  key = "us-east1/company/demo1/11112/3/response/device/3.1f6ba0009ade5ae06bf1b823ca82f5b9.ods.processed.success.2020-04-04T00:00:00.400Z"
-////  source = "../files/processed.success"
-////  force_destroy = true
-////}
-//
-//
-//# 5
-//resource "aws_s3_bucket_object" "object_transaction_2222" {
+//resource "aws_s3_bucket_object" "object_transaction_423" {
 //  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-//  key = "us-east1/company/demo1/11112/44/response/device/44/Response.json"
-//  source = "../files/transaction2.json"
+//  key = "rules/2020-11-23/cust_4/ref_4/tr_4.json"
+//  source = "../files/transaction1.json"
 //  force_destroy = true
 //}
-//
-////resource "aws_s3_bucket_object" "object_transaction_2222_processed_success" {
-////  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-////  key = "us-east1/company/demo1/11112/44/response/device/44.1f6ba0009ade5ae06bf1b823ca82f5b9.ods.processed.success"
-////  source = "../files/processed.success"
-////  force_destroy = true
-////}
-//
-////resource "aws_s3_bucket_object" "object_transaction_2222_processed_success_timestamp" {
-////  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-////  key = "us-east1/company/demo1/11112/44/response/device/44.1f6ba0009ade5ae06bf1b823ca82f5b9.ods.processed.success.2020-05-05T00:00:00.500Z"
-////  source = "../files/processed.success"
-////  force_destroy = true
-////}
-//
-//
-//# 6
-//resource "aws_s3_bucket_object" "object_transaction_2223" {
+//resource "aws_s3_bucket_object" "object_transaction_523" {
 //  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-//  key = "us-east1/company/demo1/11112/45/response/device/45/Response.json"
-//  source = "../files/transaction2.json"
+//  key = "rules/2020-11-23/cust_5/ref_5/tr_5.json"
+//  source = "../files/transaction1.json"
 //  force_destroy = true
 //}
-//
-////resource "aws_s3_bucket_object" "object_transaction_2223_processed_success" {
-////  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-////  key = "us-east1/company/demo1/11112/45/response/device/45.1f6ba0009ade5ae06bf1b823ca82f5b9.ods.processed.success"
-////  source = "../files/processed.success"
-////  force_destroy = true
-////}
-//
-////resource "aws_s3_bucket_object" "object_transaction_2223_processed_success_timestamp" {
-////  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-////  key = "us-east1/company/demo1/11112/45/response/device/45.1f6ba0009ade5ae06bf1b823ca82f5b9.ods.processed.success.2020-06-06T00:00:00.600Z"
-////  source = "../files/processed.success"
-////  force_destroy = true
-////}
-//
-//
-//# 7
-//resource "aws_s3_bucket_object" "object_transaction_2224" {
+//resource "aws_s3_bucket_object" "object_transaction_623" {
 //  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-//  key = "us-east1/company/demo1/11112/46/response/device/46/Response.json"
-//  source = "../files/transaction2.json"
+//  key = "rules/2020-11-23/cust_6/ref_6/tr_6.json"
+//  source = "../files/transaction1.json"
 //  force_destroy = true
 //}
-//
-////resource "aws_s3_bucket_object" "object_transaction_2224_processed_success" {
-////  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-////  key = "us-east1/company/demo1/11112/46/response/device/46.1f6ba0009ade5ae06bf1b823ca82f5b9.ods.processed.success"
-////  source = "../files/processed.success"
-////  force_destroy = true
-////}
-//
-////resource "aws_s3_bucket_object" "object_transaction_2224_processed_success_timestamp" {
-////  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-////  key = "us-east1/company/demo1/11112/46/response/device/46.1f6ba0009ade5ae06bf1b823ca82f5b9.ods.processed.success.2020-07-07T00:00:00.700Z"
-////  source = "../files/processed.success"
-////  force_destroy = true
-////}
-//
-//
-//# 8
-//resource "aws_s3_bucket_object" "object_transaction_2225" {
+//resource "aws_s3_bucket_object" "object_transaction_723" {
 //  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-//  key = "us-east1/company/demo1/11112/47/response/device/47/Response.json"
-//  source = "../files/transaction2.json"
+//  key = "rules/2020-11-23/cust_7/ref_7/tr_7.json"
+//  source = "../files/transaction1.json"
 //  force_destroy = true
 //}
-//
-////resource "aws_s3_bucket_object" "object_transaction_2225_processed_success" {
-////  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-////  key = "us-east1/company/demo1/11112/47/response/device/47.1f6ba0009ade5ae06bf1b823ca82f5b9.ods.processed.success"
-////  source = "../files/processed.success"
-////  force_destroy = true
-////}
-//
-////resource "aws_s3_bucket_object" "object_transaction_2225_processed_success_timestamp" {
-////  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-////  key = "us-east1/company/demo1/11112/47/response/device/47.1f6ba0009ade5ae06bf1b823ca82f5b9.ods.processed.success.2020-08-08T00:00:00.800Z"
-////  source = "../files/processed.success"
-////  force_destroy = true
-////}
-//
-//
-//# 9
-//resource "aws_s3_bucket_object" "object_transaction_3" {
+//resource "aws_s3_bucket_object" "object_transaction_823" {
 //  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-//  key = "us-east1/company/demo2/2222/666ef123/response/device/777d588/Response.json"
-//  source = "../files/transaction3.json"
+//  key = "rules/2020-11-23/cust_8/ref_8/tr_8.json"
+//  source = "../files/transaction1.json"
 //  force_destroy = true
 //}
-//
-////resource "aws_s3_bucket_object" "object_transaction_3_processed_success" {
-////  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-////  key = "us-east1/company/demo2/2222/666ef123/response/device/777d588.7e2a0a4740667ecf0e5b27c147f72a9b.ods.processed.success"
-////  source = "../files/processed.success"
-////  force_destroy = true
-////}
-//
-////resource "aws_s3_bucket_object" "object_transaction_3_processed_success_timestamp" {
-////  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-////  key = "us-east1/company/demo2/2222/666ef123/response/device/777d588.7e2a0a4740667ecf0e5b27c147f72a9b.ods.processed.success.2020-09-09T00:00:00.900Z"
-////  source = "../files/processed.success"
-////  force_destroy = true
-////}
-//
-//
-//# 10
-//resource "aws_s3_bucket_object" "object_transaction_4" {
+//resource "aws_s3_bucket_object" "object_transaction_923" {
 //  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-//  key = "us-east1/company/demo2/2222/888ef123/response/device/999d588/Response.json"
-//  source = "../files/transaction4.json"
+//  key = "rules/2020-11-23/cust_9/ref_9/tr_9.json"
+//  source = "../files/transaction1.json"
 //  force_destroy = true
 //}
-//
-////resource "aws_s3_bucket_object" "object_transaction_4_processed_success" {
-////  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-////  key = "us-east1/company/demo2/2222/888ef123/response/device/999d588.de2731685728971b22e820d81ab41c5e.ods.processed.success"
-////  source = "../files/processed.success"
-////  force_destroy = true
-////}
-//
-////resource "aws_s3_bucket_object" "object_transaction_4_processed_success_timestamp" {
-////  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-////  key = "us-east1/company/demo2/2222/888ef123/response/device/999d588.de2731685728971b22e820d81ab41c5e.ods.processed.success.2020-10-10T00:00:00.101Z"
-////  source = "../files/processed.success"
-////  force_destroy = true
-////}
-//
-//
-//# 11
-//resource "aws_s3_bucket_object" "object_transaction_5" {
+//resource "aws_s3_bucket_object" "object_transaction_1023" {
 //  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-//  key = "us-east1/company/demo3/3333/000ef123/response/device/111d588/Response.json"
-//  source = "../files/transaction5.json"
+//  key = "rules/2020-11-23/cust_10/ref_10/tr_10.json"
+//  source = "../files/transaction1.json"
 //  force_destroy = true
 //}
-//
-////resource "aws_s3_bucket_object" "object_transaction_5_processed_success" {
-////  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-////  key = "us-east1/company/demo3/3333/000ef123/response/device/111d588.33748e312ab27366e1fa7dbec035dcf1.ods.processed.success"
-////  source = "../files/processed.success"
-////  force_destroy = true
-////}
-//
-////resource "aws_s3_bucket_object" "object_transaction_5_processed_success_timestamp" {
-////  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-////  key = "us-east1/company/demo3/3333/000ef123/response/device/111d588.33748e312ab27366e1fa7dbec035dcf1.ods.processed.success.2020-11-11T00:00:00.111Z"
-////  source = "../files/processed.success"
-////  force_destroy = true
-////}
-//
-//
-//# 12
-//resource "aws_s3_bucket_object" "object_transaction_6" {
+//resource "aws_s3_bucket_object" "object_transaction_1123" {
 //  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-//  key = "us-east1/company/demo3/3333/111ef123/response/device/222d588/Response.json"
-//  source = "../files/transaction6.json"
+//  key = "rules/2020-11-23/cust_11/ref_11/tr_11.json"
+//  source = "../files/transaction1.json"
 //  force_destroy = true
 //}
-//
-////resource "aws_s3_bucket_object" "object_transaction_6_processed_success" {
-////  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-////  key = "us-east1/company/demo3/3333/111ef123/response/device/222d588.36df7215eeed8448c02276c87692f4aa.ods.processed.success"
-////  source = "../files/processed.success"
-////  force_destroy = true
-////}
-//
-////resource "aws_s3_bucket_object" "object_transaction_6_processed_success_timestamp" {
-////  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-////  key = "us-east1/company/demo3/3333/111ef123/response/device/222d588.36df7215eeed8448c02276c87692f4aa.ods.processed.success.2020-01-01T00:00:00.100Z"
-////  source = "../files/processed.success"
-////  force_destroy = true
-////}
-//
-//
-//
-//
-//# Others not Response.json
-////resource "aws_s3_bucket_object" "object_transaction666" {
-////  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-////  key = "us-east1/company/demo3/33333333333333333/111ef123/response/device/222d588/Response.bla"
-////  source = "../files/transaction6.json"
-////  force_destroy = true
-////}
-////
-////resource "aws_s3_bucket_object" "object_transaction66666" {
-////  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-////  key = "us-east1/company/demo3/44444444444444444/111ef123/response/device/222d588/Response.txt"
-////  source = "../files/transaction6.json"
-////  force_destroy = true
-////}
-////
-////resource "aws_s3_bucket_object" "object_transaction666666" {
-////  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-////  key = "us-east1/company/demo3/55555555555555555/111ef123/response/device/222d588/some-file.txt"
-////  source = "../files/transaction6.json"
-////  force_destroy = true
-////}
-////
-////resource "aws_s3_bucket_object" "object_transaction66666666" {
-////  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-////  key = "us-east1/company/demo3/666666666666666666/111ef123/response/device/222d588/new-file.txt"
-////  source = "../files/transaction6.json"
-////  force_destroy = true
-////}
-////
-////resource "aws_s3_bucket_object" "object_transaction66666666666" {
-////  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
-////  key = "us-east1/company/demo3/777777777777777777/111ef123/response/device/222d588/new-file.csv"
-////  source = "../files/transaction6.json"
-////  force_destroy = true
-////}
+//resource "aws_s3_bucket_object" "object_transaction_1223" {
+//  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+//  key = "rules/2020-11-23/cust_12/ref_12/tr_12.json"
+//  source = "../files/transaction1.json"
+//  force_destroy = true
+//}
+//resource "aws_s3_bucket_object" "object_transaction_1323" {
+//  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+//  key = "rules/2020-11-23/cust_13/ref_13/tr_13.json"
+//  source = "../files/transaction1.json"
+//  force_destroy = true
+//}
+
+##################
+
+//resource "aws_s3_bucket_object" "object_transaction_124" {
+//  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+//  key = "rules/2020-11-24/cust_1/ref_1/tr_1.json"
+//  source = "../files/transaction1.json"
+//  force_destroy = true
+//}
+//resource "aws_s3_bucket_object" "object_transaction_224" {
+//  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+//  key = "rules/2020-11-24/cust_2/ref_2/tr_2.json"
+//  source = "../files/transaction1.json"
+//  force_destroy = true
+//}
+//resource "aws_s3_bucket_object" "object_transaction_324" {
+//  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+//  key = "rules/2020-11-24/cust_3/ref_3/tr_3.json"
+//  source = "../files/transaction1.json"
+//  force_destroy = true
+//}
+//resource "aws_s3_bucket_object" "object_transaction_424" {
+//  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+//  key = "rules/2020-11-24/cust_4/ref_4/tr_4.json"
+//  source = "../files/transaction1.json"
+//  force_destroy = true
+//}
+//resource "aws_s3_bucket_object" "object_transaction_524" {
+//  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+//  key = "rules/2020-11-24/cust_5/ref_5/tr_5.json"
+//  source = "../files/transaction1.json"
+//  force_destroy = true
+//}
+//resource "aws_s3_bucket_object" "object_transaction_624" {
+//  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+//  key = "rules/2020-11-24/cust_6/ref_6/tr_6.json"
+//  source = "../files/transaction1.json"
+//  force_destroy = true
+//}
+//resource "aws_s3_bucket_object" "object_transaction_724" {
+//  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+//  key = "rules/2020-11-24/cust_7/ref_7/tr_7.json"
+//  source = "../files/transaction1.json"
+//  force_destroy = true
+//}
+//resource "aws_s3_bucket_object" "object_transaction_824" {
+//  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+//  key = "rules/2020-11-24/cust_8/ref_8/tr_8.json"
+//  source = "../files/transaction1.json"
+//  force_destroy = true
+//}
+//resource "aws_s3_bucket_object" "object_transaction_924" {
+//  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+//  key = "rules/2020-11-24/cust_9/ref_9/tr_9.json"
+//  source = "../files/transaction1.json"
+//  force_destroy = true
+//}
+//resource "aws_s3_bucket_object" "object_transaction_1024" {
+//  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+//  key = "rules/2020-11-24/cust_10/ref_10/tr_10.json"
+//  source = "../files/transaction1.json"
+//  force_destroy = true
+//}
+//resource "aws_s3_bucket_object" "object_transaction_1124" {
+//  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+//  key = "rules/2020-11-24/cust_11/ref_11/tr_11.json"
+//  source = "../files/transaction1.json"
+//  force_destroy = true
+//}
+//resource "aws_s3_bucket_object" "object_transaction_1224" {
+//  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+//  key = "rules/2020-11-24/cust_12/ref_12/tr_12.json"
+//  source = "../files/transaction1.json"
+//  force_destroy = true
+//}
+//resource "aws_s3_bucket_object" "object_transaction_1324" {
+//  bucket = "${aws_s3_bucket.s3_bucket_all_transactions.bucket}"
+//  key = "rules/2020-11-24/cust_13/ref_13/tr_13.json"
+//  source = "../files/transaction1.json"
+//  force_destroy = true
+//}
